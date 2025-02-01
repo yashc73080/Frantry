@@ -30,6 +30,7 @@ export default function App() {
           uploadImageToBackend(photo.base64);
         }
       } catch (error) {
+        console.error("takePhoto error:", error);
         Alert.alert("Error", "Failed to capture photo.");
       }
     }
@@ -37,7 +38,7 @@ export default function App() {
 
   const uploadImageToBackend = async (base64Image: string): Promise<void> => {
     try {
-      const response = await fetch("http://localhost:5000/image", {
+      const response = await fetch("http://10.74.87.22:5000/image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ image: base64Image }),
@@ -45,6 +46,7 @@ export default function App() {
       const data = await response.json();
       console.log("OCR Response:", data);
     } catch (error) {
+      console.error("uploadImageToBackend error:", error);
       Alert.alert("Error", "Image upload failed.");
     }
   };
