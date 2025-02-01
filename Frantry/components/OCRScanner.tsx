@@ -3,6 +3,8 @@ import { View, Button, Image, Text } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import axios from "axios";
 
+// send receipt image to api and extract text from receipt
+
 const GOOGLE_VISION_API_KEY = process.env.GOOGLE_VISION_API_KEY;
 
 const OCRScanner = ({ onExtractedText }: { onExtractedText: (text: string) => void }) => {
