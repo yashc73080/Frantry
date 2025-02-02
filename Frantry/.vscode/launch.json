@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Debug Expo",
+        "request": "launch",
+        "type": "reactnative",
+        "cwd": "${workspaceFolder}",
+        "platform": "exponent",
+        "expoHostType": "lan", // Use "lan" or "localhost" if "tunnel" doesn't work
+        "sourceMaps": true
+      }
+    ]
+  }

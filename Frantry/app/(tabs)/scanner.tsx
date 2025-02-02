@@ -1,6 +1,8 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useState, useEffect, useRef } from "react";
 import { TouchableOpacity, StyleSheet, Text, View, Alert } from "react-native";
+import * as ImageManipulator from 'expo-image-manipulator';
+import { Platform } from "react-native";
 
 export default function App() {
   const cameraRef = useRef<CameraView | null>(null);
@@ -19,14 +21,22 @@ export default function App() {
     );
   }
 
+  
+
   const toggleCameraFacing = () => setFacing(facing === "back" ? "front" : "back");
 
   const takePhoto = async (): Promise<void> => {
     if (cameraRef.current) {
       try {
-        const photo = await cameraRef.current.takePictureAsync({ base64: true });
+        // setPictureSizes("1280x720")
+        const photo = await cameraRef.current.takePictureAsync({ quality: 0.5, base64: true });
+        
+        
         if (photo?.base64) {
+          // const resizedPhoto = await resizeImageToFit(photo.uri, 1280, 720)
           alert(`Photo captured: ${photo.width}x${photo.height}`);
+          console.log()
+          // uploadImage(photo.uri)
           uploadImageToBackend(photo.base64);
         }
       } catch (error) {
@@ -35,16 +45,58 @@ export default function App() {
     }
   };
 
+  const uploadImage = async (uri: string) => {
+    const formData = new FormData();
+  
+    // Fetch the file from URI
+    const response = await fetch(uri);
+    const blob = await response.blob(); // Convert to a Blob object
+  
+    // Append the Blob to FormData
+    formData.append("image", blob, "photo.jpg"); // You can replace "photo.jpg" with your preferred filename
+  
+    try {
+      const apiUrl = "http://10.74.126.23:5000/api/items/image/upload";
+      const res = await fetch(apiUrl, {
+        method: "POST",
+        body: formData,
+      });
+  
+      const data = await res.json();
+  
+      if (res.ok) {
+        console.log("Upload Success:", data);
+        // You can use the filePath from the response to display or store the image
+      } else {
+        console.error("Upload failed:", data);
+      }
+    } catch (error) {
+      console.error("Network error:", error);
+    }
+  };
+  
   const uploadImageToBackend = async (base64Image: string): Promise<void> => {
     try {
-      const response = await fetch("http://localhost:5000/image", {
+      // Ensure the base64Image has the proper prefix
+      const formattedImage = base64Image.startsWith('data:image')
+        ? base64Image
+        : `data:image/jpeg;base64,${base64Image}`;
+      
+  
+      const response = await fetch("http://10.74.126.23:5000/api/items/image", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: base64Image }),
+        body: JSON.stringify({ image: formattedImage }), // Send the formatted image
       });
+  
+      if (!response.ok) {
+        throw new Error(`HTTP error! Status: ${response.status}`);
+      }
+  
       const data = await response.json();
       console.log("OCR Response:", data);
     } catch (error) {
+      console.error("Error uploading image:", error);
       Alert.alert("Error", "Image upload failed.");
     }
   };
