@@ -1,8 +1,8 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
-import { useState, useEffect, useRef } from "react";
-import { TouchableOpacity, StyleSheet, Text, View, Alert } from "react-native";
+import { useState, useRef } from "react";
+import { StyleSheet, Text, View, Alert } from "react-native";
 import axios from 'axios';
-// import { GOOGLE_CLOUD_VISION_API_KEY } from "@env";
+import { Button } from 'react-native-paper';
 
 const GOOGLE_CLOUD_VISION_API_KEY = 'AIzaSyDSO7Puxg9hZ2cxuB_UR19PW_L2CkD87Gs';
 const OPENROUTER_API_KEY = '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'; 
@@ -18,9 +18,9 @@ export default function Scanner() {
     return (
       <View style={styles.permissionContainer}>
         <Text style={styles.permissionText}>We need camera access</Text>
-        <TouchableOpacity style={styles.permissionButton} onPress={requestPermission}>
-          <Text style={styles.buttonText}>Grant Permission</Text>
-        </TouchableOpacity>
+        <Button style={styles.permissionButton} mode="contained" onPress={requestPermission}>
+          Grant Permission
+        </Button>
       </View>
     );
   }
@@ -202,7 +202,7 @@ export default function Scanner() {
           },
         ],
       };
-  
+
       const apiResponse = await axios.post(
         `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_CLOUD_VISION_API_KEY}`,
         requestPayload
@@ -236,17 +236,24 @@ export default function Scanner() {
     <View style={styles.container}>
       <CameraView style={styles.camera} facing={facing} ref={cameraRef}>
         <View style={styles.overlay}>
-          <TouchableOpacity style={styles.flipButton} onPress={toggleCameraFacing}>
-            <Text style={styles.buttonText}>Flip</Text>
-          </TouchableOpacity>
+          <Button
+            style={styles.flipButton}
+            mode="outlined"
+            onPress={toggleCameraFacing}
+          >
+            Flip
+          </Button>
         </View>
       </CameraView>
       <View style={styles.controlsContainer}>
-        <TouchableOpacity style={styles.captureButton} onPress={takePhoto} />
-        <View style={styles.resolutionsContainer}>
-          <Text style={styles.resolutionText}>Available Resolutions</Text>
-          {/* Add buttons for resolutions here */}
-        </View>
+        <Button
+          style={styles.captureButton}
+          mode="contained"
+          onPress={takePhoto}
+          icon="camera"
+        >
+          Capture
+        </Button>
       </View>
     </View>
   );
@@ -256,41 +263,33 @@ const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: "center" },
   camera: { flex: 1 },
   overlay: {
-    position: "absolute",
-    top: 20,
+    position: "relative",
+    top: 10,
     flexDirection: "row",
     width: "100%",
     justifyContent: "space-around",
     alignItems: "center",
   },
   flipButton: {
-    backgroundColor: "rgba(0, 0, 0, 0.5)",
-    padding: 12,
     borderRadius: 25,
   },
   captureButton: {
-    width: 70,
-    height: 70,
-    borderRadius: 35,
-    backgroundColor: "white",
-    borderWidth: 4,
-    borderColor: "gray",
-    alignSelf: "center",
+    width: 200,
+    height: 50,
     marginVertical: 20,
+    borderRadius: 25,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: "rgba(0, 0, 0, 0.5)",
+    shadowOffset: { width: 0, height: 4 },
+    shadowRadius: 10,
+    shadowOpacity: 0.25,
+    elevation: 5,
   },
   controlsContainer: {
     padding: 20,
     alignItems: "center",
   },
-  resolutionsContainer: {
-    marginTop: 10,
-    alignItems: "center",
-  },
-  resolutionText: {
-    fontSize: 16,
-    fontWeight: "bold",
-  },
-  buttonText: { color: "white", fontSize: 16, fontWeight: "bold" },
   permissionContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
   permissionText: { fontSize: 18, marginBottom: 20 },
   permissionButton: {

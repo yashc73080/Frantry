@@ -4,7 +4,7 @@ import HomeScreen from './index';
 import PantryList from './Pantry';
 import Scanner from './scanner';
 import SettingsScreen from './Settings';
-import RecipesScreen from './Recipies';
+import RecipesScreen from './Recipes';
 
 
 
@@ -15,7 +15,7 @@ const MyComponent = () => {
     { key: 'scanner', title: 'Camera', focusedIcon: 'camera',unfocusedIcon: 'camera-outline' },
     { key: 'favorites', title: 'Favorites', focusedIcon: 'heart', unfocusedIcon: 'heart-outline' },
     { key: 'settings', title: 'Settings', focusedIcon: 'cog', unfocusedIcon: 'cog-outline' },
-    { key: 'recipies', title: 'recipies', focusedIcon: 'food-croissant', unfocusedIcon: 'food-croissant' }
+    { key: 'recipes', title: 'Recipes', focusedIcon: 'food-croissant', unfocusedIcon: 'food-croissant' }
   ]);
 
   const renderScene = BottomNavigation.SceneMap({
@@ -23,7 +23,7 @@ const MyComponent = () => {
     scanner: Scanner,
     favorites: HomeScreen,
     settings: SettingsScreen,
-    recipies: RecipesScreen
+    recipes: RecipesScreen
   });
 
   return (

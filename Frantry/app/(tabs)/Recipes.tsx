@@ -70,10 +70,7 @@ const RecipesScreen: React.FC = () => {
           </Button>
         </View>
       ) : (
-        <View>
-          <Button mode="contained" onPress={fetchRecipe} style={styles.fetchButton}>
-            Generate Recipe
-          </Button>
+        <View style={styles.content}>
           <FlatList
             data={[{
                 id: '1',
@@ -86,6 +83,12 @@ const RecipesScreen: React.FC = () => {
           />
         </View>
       )}
+
+      <View style={styles.footer}>
+        <Button mode="contained" onPress={fetchRecipe} style={styles.fetchButton}>
+          Generate Recipe
+        </Button>
+      </View>
     </View>
   );
 };
@@ -94,6 +97,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
+    justifyContent: 'space-between', // Ensures the content is pushed to the top and button at the bottom
+  },
+  content: {
+    flex: 1, // Takes up the remaining space above the footer
   },
   card: {
     marginVertical: 12,
@@ -127,8 +134,10 @@ const styles = StyleSheet.create({
     marginTop: 20,
     borderRadius: 8,
   },
+  footer: {
+    paddingBottom: 20, // Adds some space at the bottom of the screen
+  },
   fetchButton: {
-    marginBottom: 20,
     borderRadius: 8,
   },
 });

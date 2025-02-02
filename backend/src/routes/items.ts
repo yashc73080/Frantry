@@ -1,12 +1,13 @@
 import express, { Request, Response } from "express";
 import Item from "../models/Item";
 import fs from "fs";
+import sendRecipe from './apigen'
 
 const router = express.Router();
 
 
 // POST: Add a new pantry item
-router.post("/", async (req: Request, res: Response) => {
+router.post("/addItem", async (req: Request, res: Response) => {
   try {
     if (Array.isArray(req.body)) {
       // If req.body is an array, insert multiple items
@@ -14,8 +15,8 @@ router.post("/", async (req: Request, res: Response) => {
       res.status(201).json(newItems);
     } else {
       // If req.body is a single object, insert one item
-      const { name, expiryDate, category, expiryLevel } = req.body;
-      const newItem = new Item({ name, expiryDate, category, expiryLevel });
+      const { name, daysUntilExpiration,expiryLevel } = req.body;
+      const newItem = new Item({ name, daysUntilExpiration, expiryLevel });
       await newItem.save();
       res.status(201).json(newItem);
     }
@@ -27,7 +28,7 @@ router.post("/", async (req: Request, res: Response) => {
 
 
 // GET: Fetch all pantry items
-router.get("/", async (_req: Request, res: Response) => {
+router.get("/getAllItems", async (_req: Request, res: Response) => {
   try {
     const items = await Item.find();
     res.json(items);
@@ -36,6 +37,18 @@ router.get("/", async (_req: Request, res: Response) => {
   }
 });
 
+router.get("/recipes", async (_req: Request, res: Response) => {
+  try {
+    console.log(`Recipe:`);
+    const recipe = await sendRecipe();
+    
+    res.json(recipe);
+    // res.status(200);
+  
+  } catch (error) {
+    res.status(500).json({ error: "❌ Server error" });
+  }
+});
 
 
 
