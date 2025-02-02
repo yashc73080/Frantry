@@ -11,7 +11,6 @@ export default function Scanner() {
   const cameraRef = useRef<CameraView | null>(null);
   const [facing, setFacing] = useState<'back' | 'front'>('back');
   const [permission, requestPermission] = useCameraPermissions();
-  const [expiryData, setExpiryData] = useState<any[]>([]);
 
   if (!permission) return <View />;
   if (!permission.granted) {
@@ -104,7 +103,7 @@ export default function Scanner() {
         const response = await axios.post(
             "https://openrouter.ai/api/v1/chat/completions",
             {
-                model: "google/gemini-2.0-flash-exp:free",
+                model: "meta-llama/llama-3.2-3b-instruct:free",
                 messages: [
                     { role: "system", content: "You must respond **only** in JSON format. No extra text, explanations, or formatting." },
                     { role: "user", content: prompt }
@@ -135,6 +134,20 @@ export default function Scanner() {
     } catch (error) {
         console.error("Error inferring expiration:", error);
         return [];
+    }
+  };
+
+  const sendDataToBackend = async (foodData: any[]) => {
+    try {
+      const response = await axios.post(
+        'http://10.74.87.22:5000/api/items/scannedData',
+        foodData
+      );
+      console.log('Data successfully sent to backend:', response.data);
+      Alert.alert('Success', 'Food data uploaded successfully!');
+    } catch (error) {
+      console.error('Error sending data to backend:', error);
+      Alert.alert('Error', 'Failed to send data to server. Please try again.');
     }
   };
 
@@ -171,27 +184,6 @@ export default function Scanner() {
   //   }
   // };
 
-  const sendDataToBackend = async () => {
-    try {
-      const response = await fetch('http://10.74.87.22:5000/scannedData', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ expiryData }),
-      });
-      
-      if (response.ok) {
-        const result = await response.json();
-        console.log('Backend Response:', result);
-        setExpiryData([]);
-      }
-    }
-    catch (error) {
-      console.error('Error sending data to backend:', error);
-    }
-  }
-
   const ocrImage = async (base64Image: string) => {
     try {
       const requestPayload = {
@@ -223,8 +215,7 @@ export default function Scanner() {
       console.log("Final Output:", foodData);
   
       if (foodData.length > 0) {
-        setExpiryData(foodData);
-        await sendDataToBackend();
+        await sendDataToBackend(foodData);
       }
   
     } catch (error) {
