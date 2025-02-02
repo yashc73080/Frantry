@@ -5,7 +5,7 @@ import axios from 'axios';
 import { Button } from 'react-native-paper';
 
 const GOOGLE_CLOUD_VISION_API_KEY = 'AIzaSyDSO7Puxg9hZ2cxuB_UR19PW_L2CkD87Gs';
-const OPENROUTER_API_KEY = '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'; 
+const OPENROUTER_API_KEY = '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'; 
 
 export default function Scanner() {
   const cameraRef = useRef<CameraView | null>(null);
@@ -150,39 +150,6 @@ export default function Scanner() {
       Alert.alert('Error', 'Failed to send data to server. Please try again.');
     }
   };
-
-  // const sendDataToBackend = async (expiryData: any) => {
-  //   try {
-  //     const response = await axios.post("http://10.74.87.22:5000/scannedData", expiryData, {
-  //       headers: { "Content-Type": "application/json" },
-  //     });
-  
-  //     console.log("Backend Response:", response.data);
-  //   } catch (error) {
-  //     console.error("Error sending data to backend:", error);
-  //   }
-  // };
-
-  // const sendDataToBackend = async (expiryData: any) => {
-  //   try {
-  //     const response = await fetch("http://10.74.87.22:5000/scannedData", {
-  //       method: "POST",
-  //       headers: {
-  //         "Content-Type": "application/json",
-  //       },
-  //       body: JSON.stringify(expiryData),
-  //     });
-  
-  //     if (!response.ok) {
-  //       throw new Error(`HTTP error! Status: ${response.status}`);
-  //     }
-  
-  //     const data = await response.json();
-  //     console.log("Backend Response:", data);
-  //   } catch (error) {
-  //     console.error("Error sending data to backend:", error);
-  //   }
-  // };
 
   const ocrImage = async (base64Image: string) => {
     try {
