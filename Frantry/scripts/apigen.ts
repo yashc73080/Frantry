@@ -56,7 +56,7 @@ const getRecipe = async () => {
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        "model": "google/gemini-2.0-flash-exp:free",
+        "model": "meta-llama/llama-3.2-3b-instruct:free",
         "messages": [
           {
             "role": "user",
@@ -72,6 +72,10 @@ const getRecipe = async () => {
     });
 
     const data = await response.json();
+    if (!data.choices || !data.choices[0]) {
+      console.error('Invalid response structure: ', data);
+      return;
+    }
     const reply = data.choices[0].message.content;
     return reply;
     console.log('Output: ', reply);
@@ -84,8 +88,8 @@ const getRecipe = async () => {
 
 const sendRecipe = async () => {
   const reply = await getRecipe();
-  const json = `{"recipe":${reply}}`;
-  return JSON.parse(json);
+  const json = `{"recipe": "${reply}"}`;
+  console.log(reply);
+  const fix = JSON.stringify(json);
+  return JSON.parse(fix);
 }
-
-
