@@ -6,9 +6,8 @@ interface IItemModel extends IItem, Document {}
 const ItemSchema = new Schema<IItemModel>({
   name: { type: String, required: true },
   expiryDate: { type: Date, required: true },
-  category: { type: String },
   createdAt: { type: Date, default: Date.now },
-  expiryLevel: { type: String , default: "Green"},
+  expiryLevel: { type: String , default: "High"},
 });
 
 export default mongoose.model<IItemModel>("Item", ItemSchema);

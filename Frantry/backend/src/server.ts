@@ -5,7 +5,6 @@ import connectDB from "./config/db";
 import itemRoutes from "./routes/items";
 import path from "path";
 import fs from "fs";
-import multer from "multer";
 
 dotenv.config();
 
@@ -30,49 +29,12 @@ if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 
-// Set up multer for image uploads
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir); // Save the file in the "uploads" directory
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname)); // Name the file based on the current timestamp
-  },
-});
-
-const upload = multer({ storage: storage });
-
 // Routes
 app.use("/api/items", itemRoutes);
 
-// Image upload endpoint
-app.post("items/upload", upload.single("image"), (req, res) => {
-  if (!req.file) {
-    res.status(400).json({ error: "No file uploaded" });
-  }
-  else {
-    res.json({ message: "Image uploaded successfully", filePath: `/uploads/${req.file.filename}` });
-
-  }
-
-  // Respond with the file's path or URL (you can customize this)
-})
-
 // Serve the uploaded image
-app.get("/image/:filename", (req, res) => {
-  const filePath = path.join(__dirname, "uploads", req.params.filename);
-  if (fs.existsSync(filePath)) {
-    res.sendFile(filePath);
-  } else {
-    res.status(404).json({ error: "Image not found" });
-  }
-});
-
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-// Error handling middleware
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-  console.error("Error:", err.stack);
-  res.status(500).json({ error: "Internal server error" });
+app.get('/', (req, res) => {
+  res.send('Hello, welcome to the Frantry API!');
 });
 
 // Start the server
