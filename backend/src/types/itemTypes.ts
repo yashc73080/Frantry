@@ -1,7 +1,6 @@
 export interface IItem {
     name: string;
-    expiryDate: Date;
-    category?: string;
+    daysUntilExpiration: number;
     createdAt?: Date;
     expiryLevel?: string;
   }
