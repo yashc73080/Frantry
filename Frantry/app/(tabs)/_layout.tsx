@@ -3,6 +3,8 @@ import { BottomNavigation, Text } from 'react-native-paper';
 import HomeScreen from './index';
 import PantryList from './Pantry';
 import Scanner from './scanner';
+import SettingsScreen from './Settings';
+import RecipesScreen from './Recipies';
 
 
 
@@ -12,14 +14,16 @@ const MyComponent = () => {
     { key: 'pantry', title: 'My Pantry', focusedIcon: 'wardrobe', unfocusedIcon:'wardrobe-outline' },
     { key: 'scanner', title: 'Camera', focusedIcon: 'camera',unfocusedIcon: 'camera-outline' },
     { key: 'favorites', title: 'Favorites', focusedIcon: 'heart', unfocusedIcon: 'heart-outline' },
-    { key: 'settings ', title: 'Settings', focusedIcon: 'cog', unfocusedIcon: 'cog-outline' },
+    { key: 'settings', title: 'Settings', focusedIcon: 'cog', unfocusedIcon: 'cog-outline' },
+    { key: 'recipies', title: 'recipies', focusedIcon: 'food-croissant', unfocusedIcon: 'food-croissant' }
   ]);
 
   const renderScene = BottomNavigation.SceneMap({
     pantry: PantryList,
     scanner: Scanner,
     favorites: HomeScreen,
-    settings: HomeScreen
+    settings: SettingsScreen,
+    recipies: RecipesScreen
   });
 
   return (
