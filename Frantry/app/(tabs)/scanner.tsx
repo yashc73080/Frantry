@@ -2,9 +2,9 @@ import { CameraView, useCameraPermissions } from "expo-camera";
 import { useState, useEffect, useRef } from "react";
 import { TouchableOpacity, StyleSheet, Text, View, Alert } from "react-native";
 import axios from 'axios';
+// import { GOOGLE_CLOUD_VISION_API_KEY } from "@env";
 
-
-const apiKey = 'AIzaSyDSO7Puxg9hZ2cxuB_UR19PW_L2CkD87Gs'; // Replace with your API key
+const GOOGLE_CLOUD_VISION_API_KEY = 'AIzaSyDSO7Puxg9hZ2cxuB_UR19PW_L2CkD87Gs';
 
 export default function App() {
   const cameraRef = useRef<CameraView | null>(null);
@@ -60,7 +60,7 @@ export default function App() {
       };
   
       const apiResponse = await axios.post(
-        `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
+        `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_CLOUD_VISION_API_KEY}`,
         requestPayload
       );
   
