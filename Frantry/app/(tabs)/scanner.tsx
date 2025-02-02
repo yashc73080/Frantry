@@ -1,9 +1,12 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useState, useEffect, useRef } from "react";
 import { TouchableOpacity, StyleSheet, Text, View, Alert } from "react-native";
-import axios from "axios"; // Import axios
+import axios from 'axios';
+// import { GOOGLE_CLOUD_VISION_API_KEY } from "@env";
 
-export default function App() {
+const GOOGLE_CLOUD_VISION_API_KEY = 'AIzaSyDSO7Puxg9hZ2cxuB_UR19PW_L2CkD87Gs';
+
+export default function Scanner() {
   const cameraRef = useRef<CameraView | null>(null);
   const [facing, setFacing] = useState<'back' | 'front'>('back');
   const [permission, requestPermission] = useCameraPermissions();
@@ -28,27 +31,57 @@ export default function App() {
         const photo = await cameraRef.current.takePictureAsync({ base64: true });
         if (photo?.base64) {
           alert(`Photo captured: ${photo.width}x${photo.height}`);
-          uploadImageToBackend(photo.base64); // Upload using axios
+          ocrImage(photo.base64);
         }
       } catch (error) {
+        console.error("takePhoto error:", error);
         Alert.alert("Error", "Failed to capture photo.");
       }
     }
   };
 
+
+  const ocrImage = async (base64Image:string) => {
+    try {
+      const requestPayload = {
+        requests: [
+          {
+            image: {
+              content: base64Image, // Use the Base64 image directly
+            },
+            features: [
+              {
+                type: 'TEXT_DETECTION', // Specify that you want text detection
+                maxResults: 1,
+              },
+            ],
+          },
+        ],
+      };
+  
+      const apiResponse = await axios.post(
+        `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_CLOUD_VISION_API_KEY}`,
+        requestPayload
+      );
+  
+      const text = apiResponse.data.responses[0].fullTextAnnotation.text;
+      console.log('Extracted Text:', text);
+    } catch (error) {
+      console.error('Error with OCR:', error);
+    }
+  };
+
   const uploadImageToBackend = async (base64Image: string): Promise<void> => {
     try {
-      const response = await axios.post(
-        "http://localhost:5000/image", // Replace with your actual backend URL
-        { image: base64Image },
-        {
-          headers: {
-            "Content-Type": "application/json", // or 'multipart/form-data' if sending file
-          },
-        }
-      );
-      console.log("OCR Response:", response.data); // Process the response as needed
+      const response = await fetch("http://10.74.126.23:5000/image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ image: base64Image }),
+      });
+      const data = await response.json();
+      console.log("OCR Response:", data);
     } catch (error) {
+      console.error("uploadImageToBackend error:", error);
       Alert.alert("Error", "Image upload failed.");
     }
   };
