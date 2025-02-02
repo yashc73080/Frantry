@@ -1,55 +1,100 @@
-import { Image, StyleSheet, Platform } from 'react-native';
-
-import { HelloWave } from '@/components/HelloWave';
-import ParallaxScrollView from '@/components/ParallaxScrollView';
-import { ThemedText } from '@/components/ThemedText';
-import { ThemedView } from '@/components/ThemedView';
+import React from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { Card, Title, Paragraph, Button } from 'react-native-paper';
 
 export default function HomeScreen() {
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
+    <ScrollView contentContainerStyle={styles.container}>
+      {/* Header Card with image and welcome text */}
+      <Card style={styles.headerCard}>
+        <Card.Cover 
+          source={require('@/assets/images/partial-react-logo.png')} 
+          style={styles.headerImage} 
         />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome to Frantry!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Scan Receipts</ThemedText>
-        <ThemedText>Use the Scanner tab to scan your grocery receipts.</ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 2: View Pantry</ThemedText>
-        <ThemedText>Check your pantry items along with expiry dates.</ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get Recipe Ideas</ThemedText>
-        <ThemedText>Use available ingredients to generate recipe suggestions.</ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+        <Card.Content style={styles.headerContent}>
+          <Title style={styles.headerTitle}>Welcome to Frantry!</Title>
+          <Paragraph style={styles.headerParagraph}>
+            Discover a smarter way to manage your kitchen. With Frantry, you can scan receipts, view your pantry items and expiry dates, and generate creative recipe ideas—all in one place.
+          </Paragraph>
+        </Card.Content>
+      </Card>
+
+      {/* Steps Cards */}
+      <View style={styles.stepsContainer}>
+        <Card style={styles.stepCard}>
+          <Card.Content>
+            <Title>Step 1: Scan Receipts</Title>
+            <Paragraph>
+              Use the Scanner tab to quickly capture your grocery receipts.
+            </Paragraph>
+          </Card.Content>
+        </Card>
+
+        <Card style={styles.stepCard}>
+          <Card.Content>
+            <Title>Step 2: View Pantry</Title>
+            <Paragraph>
+              Easily check your pantry items along with their expiry dates.
+            </Paragraph>
+          </Card.Content>
+        </Card>
+
+        <Card style={styles.stepCard}>
+          <Card.Content>
+            <Title>Step 3: Get Recipe Ideas</Title>
+            <Paragraph>
+              Generate creative recipe suggestions based on the ingredients you have.
+            </Paragraph>
+          </Card.Content>
+        </Card>
+      </View>
+
+      {/* Optional call-to-action button */}
+      <Button mode="contained" style={styles.ctaButton} onPress={() => { /* Handle button press */ }}>
+        Get Started
+      </Button>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    padding: 16,
+    paddingBottom: 32,
+    backgroundColor: '#fff',
   },
-  stepContainer: {
-    gap: 8,
+  headerCard: {
+    marginBottom: 24,
+    elevation: 4,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  headerImage: {
+    height: 200,
+  },
+  headerContent: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  headerTitle: {
+    fontSize: 24,
     marginBottom: 8,
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  headerParagraph: {
+    fontSize: 16,
+    textAlign: 'center',
+  },
+  stepsContainer: {
+    marginBottom: 24,
+  },
+  stepCard: {
+    marginBottom: 16,
+    elevation: 2,
+    borderRadius: 8,
+  },
+  ctaButton: {
+    marginHorizontal: 16,
+    borderRadius: 8,
   },
 });
+

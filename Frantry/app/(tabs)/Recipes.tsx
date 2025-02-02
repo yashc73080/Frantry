@@ -1,5 +1,13 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  ActivityIndicator,
+  ScrollView,
+} from 'react-native';
 import { Card, Button } from 'react-native-paper';
 import Typewriter from 'react-native-typewriter';
 
@@ -56,37 +64,56 @@ const RecipesScreen: React.FC = () => {
   return (
     <View style={styles.container}>
       {isLoading ? (
-        <ActivityIndicator size="large" color="black" />
-      ) : selectedRecipe ? (
-        <View style={styles.recipeDetail}>
-          <Text style={styles.recipeDetailTitle}>{selectedRecipe.title}</Text>
-          <Typewriter style={styles.recipeDetailDescription} typing={2} minDelay={20}>
-            {selectedRecipe.content}
-          </Typewriter>
-          <Button mode="contained" onPress={() => setSelectedRecipe(null)} style={styles.backButton}>
-            Back to Recipes
-          </Button>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="black" />
         </View>
+      ) : selectedRecipe ? (
+        // When a recipe is selected, show the content in a scrollable area,
+        // with a fixed "Back to Recipes" button at the bottom.
+        <>
+          <ScrollView contentContainerStyle={styles.recipeDetailScroll}>
+            <View style={styles.recipeDetail}>
+              <Text style={styles.recipeDetailTitle}>{selectedRecipe.title}</Text>
+              <Typewriter style={styles.recipeDetailDescription} typing={2} minDelay={20}>
+                {selectedRecipe.content}
+              </Typewriter>
+            </View>
+          </ScrollView>
+          <View style={styles.fixedBackButtonContainer}>
+            <Button
+              mode="contained"
+              onPress={() => setSelectedRecipe(null)}
+              style={styles.backButton}
+            >
+              Back to Recipes
+            </Button>
+          </View>
+        </>
       ) : (
         <View style={styles.content}>
           <FlatList
-            data={[{
-              id: '1',
-              title: 'Spaghetti Carbonara',
-              description: 'A classic pasta dish.',
-              content: 'This is a simple yet delicious spaghetti carbonara recipe.' // Add the content field
-            }]}
+            data={[
+              {
+                id: '1',
+                title: 'Spaghetti Carbonara',
+                description: 'A classic pasta dish.',
+                content: 'This is a simple yet delicious spaghetti carbonara recipe.',
+              },
+            ]}
             renderItem={renderRecipeItem}
             keyExtractor={(item) => item.id}
           />
         </View>
       )}
 
-      <View style={styles.footer}>
-        <Button mode="contained" onPress={fetchRecipe} style={styles.fetchButton}>
-          Generate Recipe
-        </Button>
-      </View>
+      {/* Display the "Generate Recipe" button only when no recipe is selected */}
+      {!isLoading && !selectedRecipe && (
+        <View style={styles.footer}>
+          <Button mode="contained" onPress={fetchRecipe} style={styles.fetchButton}>
+            Generate Recipe
+          </Button>
+        </View>
+      )}
     </View>
   );
 };
@@ -95,15 +122,23 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    justifyContent: 'space-between', // Ensures the content is pushed to the top and button at the bottom
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  recipeDetailScroll: {
+    flexGrow: 1,
+    paddingBottom: 80, // Reserve space for the fixed back button
   },
   content: {
-    flex: 1, // Takes up the remaining space above the footer
+    flex: 1,
   },
   card: {
     marginVertical: 12,
     borderRadius: 10,
-    elevation: 5, // Adds shadow for Android
+    elevation: 5,
   },
   recipeTitle: {
     fontSize: 18,
@@ -114,26 +149,32 @@ const styles = StyleSheet.create({
     marginTop: 5,
   },
   recipeDetail: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 20,
+    width: '100%',
+    alignItems: 'flex-start',
+    paddingVertical: 20,
   },
   recipeDetailTitle: {
     fontSize: 22,
     fontWeight: 'bold',
     marginBottom: 10,
+    textAlign: 'left',
   },
   recipeDetailDescription: {
     fontSize: 16,
     marginBottom: 20,
+    textAlign: 'left',
+  },
+  fixedBackButtonContainer: {
+    position: 'absolute',
+    bottom: 20,
+    left: 20,
+    right: 20,
   },
   backButton: {
-    marginTop: 20,
     borderRadius: 8,
   },
   footer: {
-    paddingBottom: 20, // Adds some space at the bottom of the screen
+    paddingBottom: 20,
   },
   fetchButton: {
     borderRadius: 8,

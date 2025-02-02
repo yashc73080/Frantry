@@ -5,6 +5,24 @@ import sendRecipe from "./apigen"
 
 const router = express.Router();
 
+// POST: Add scanned data to the database
+router.post("/scannedData", async (req: Request, res: Response) => {
+  try {
+    if (Array.isArray(req.body)) {
+      // If req.body is an array, insert multiple items
+      const newItems = await Item.insertMany(req.body);
+      res.status(201).json(newItems);
+    } else {
+      // If req.body is a single object, insert one item
+      const { name, daysUntilExpiration,expiryLevel } = req.body;
+      const newItem = new Item({ name, daysUntilExpiration, expiryLevel });
+      await newItem.save();
+      res.status(201).json(newItem);
+    }
+  } catch (error) {
+    res.status(500).json({ error: "❌ Server error" });
+  }
+});
 
 // POST: Add a new pantry item
 router.post("/addItem", async (req: Request, res: Response) => {
