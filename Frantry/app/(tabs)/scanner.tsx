@@ -1,6 +1,7 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useState, useEffect, useRef } from "react";
 import { TouchableOpacity, StyleSheet, Text, View, Alert } from "react-native";
+import axios from "axios"; // Import axios
 
 export default function App() {
   const cameraRef = useRef<CameraView | null>(null);
@@ -27,7 +28,7 @@ export default function App() {
         const photo = await cameraRef.current.takePictureAsync({ base64: true });
         if (photo?.base64) {
           alert(`Photo captured: ${photo.width}x${photo.height}`);
-          uploadImageToBackend(photo.base64);
+          uploadImageToBackend(photo.base64); // Upload using axios
         }
       } catch (error) {
         Alert.alert("Error", "Failed to capture photo.");
@@ -37,13 +38,16 @@ export default function App() {
 
   const uploadImageToBackend = async (base64Image: string): Promise<void> => {
     try {
-      const response = await fetch("http://localhost:5000/image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: base64Image }),
-      });
-      const data = await response.json();
-      console.log("OCR Response:", data);
+      const response = await axios.post(
+        "http://localhost:5000/image", // Replace with your actual backend URL
+        { image: base64Image },
+        {
+          headers: {
+            "Content-Type": "application/json", // or 'multipart/form-data' if sending file
+          },
+        }
+      );
+      console.log("OCR Response:", response.data); // Process the response as needed
     } catch (error) {
       Alert.alert("Error", "Image upload failed.");
     }
