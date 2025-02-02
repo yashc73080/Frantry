@@ -1,32 +1,30 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, FlatList, StyleSheet, Animated } from 'react-native';
+import axios from 'axios';
 
 // Sample Pantry data (Replace with actual data when backend is integrated)
 const pantryData = [
-  { id: '1', name: 'Milk', expiryDate: '2025-02-05' },
-  { id: '2', name: 'Eggs', expiryDate: '2025-02-03' },
-  { id: '3', name: 'Tomatoes', expiryDate: '2025-01-10' },
-  { id: '4', name: 'Chicken Breast', expiryDate: '2025-02-07' },
-  { id: '5', name: 'Bread', expiryDate: '2025-02-01' },
-  { id: '6', name: 'Cheese', expiryDate: '2025-02-10' },
-  { id: '7', name: 'Lettuce', expiryDate: '2025-02-08' },
-  { id: '8', name: 'Carrots', expiryDate: '2025-02-12' },
-  { id: '9', name: 'Potatoes', expiryDate: '2025-02-20' },
-  { id: '10', name: 'Butter', expiryDate: '2025-02-15' },
-  { id: '11', name: 'Cucumbers', expiryDate: '2025-02-18' },
-  { id: '12', name: 'Yogurt', expiryDate: '2025-02-22' },
-  { id: '13', name: 'Apples', expiryDate: '2025-02-28' },
-  { id: '14', name: 'Oranges', expiryDate: '2025-03-05' },
-  { id: '15', name: 'Spinach', expiryDate: '2025-02-10' },
+  // { id: '1', name: 'Milk', expiryDate: '2025-02-05' },
+  // { id: '2', name: 'Eggs', expiryDate: '2025-02-03' },
+  // { id: '3', name: 'Tomatoes', expiryDate: '2025-01-10' },
+  // { id: '4', name: 'Chicken Breast', expiryDate: '2025-02-07' },
+  // { id: '5', name: 'Bread', expiryDate: '2025-02-01' },
+  // { id: '6', name: 'Cheese', expiryDate: '2025-02-10' },
+  // { id: '7', name: 'Lettuce', expiryDate: '2025-02-08' },
+  // { id: '8', name: 'Carrots', expiryDate: '2025-02-12' },
+  // { id: '9', name: 'Potatoes', expiryDate: '2025-02-20' },
+  // { id: '10', name: 'Butter', expiryDate: '2025-02-15' },
+  // { id: '11', name: 'Cucumbers', expiryDate: '2025-02-18' },
+  // { id: '12', name: 'Yogurt', expiryDate: '2025-02-22' },
+  // { id: '13', name: 'Apples', expiryDate: '2025-02-28' },
+  // { id: '14', name: 'Oranges', expiryDate: '2025-03-05' },
+  // { id: '15', name: 'Spinach', expiryDate: '2025-02-10' },
   // Add more items as needed
 ];
 
 // Helper function to determine item status based on expiry
-const getExpiryStatus = (expiryDate: string) => {
-  const currentDate = new Date();
-  const itemExpiryDate = new Date(expiryDate);
-  const daysLeft = (itemExpiryDate.getTime() - currentDate.getTime()) / (1000 * 3600 * 24);
-
+const getExpiryStatus = (daysLeft: number) => {
+  
   if (daysLeft <= 0) return 'expired'; // Item has expired
   if (daysLeft <= 3) return 'close'; // Item will expire soon
   return 'fresh'; // Item is fresh
@@ -35,16 +33,36 @@ const getExpiryStatus = (expiryDate: string) => {
 const PantryList = () => {
   const fadeAnim = useRef(new Animated.Value(0)).current; // Declare ref here
 
+  const [pantryData, setPantryData] = useState([]); // State for pantry data
+  const [loading, setLoading] = useState(true); // State for loading indicator
+  const [error, setError] = useState(''); // State for error message
+
+  useEffect(() => {
+    const fetchPantryData = async () => {
+      try {
+        // Replace with your actual backend API URL
+        const response = await axios.get('http://10.74.126.23:5000/api/items/getAllItems');
+        setPantryData(response.data); // Update state with fetched data
+        setLoading(false); // Set loading to false after data is fetched
+      } catch (err) {
+        setError('Failed to fetch pantry data'); // Handle any errors
+        setLoading(false); // Set loading to false even if there's an error
+      }
+    };
+
+    fetchPantryData(); // Call the fetch function when component mounts
+  }, []);
+
   // Sort pantryData by expiryDate before rendering
-  const sortedPantryData = pantryData.sort((a, b) => new Date(a.expiryDate).getTime() - new Date(b.expiryDate).getTime());
+  const sortedPantryData = pantryData;
 
   const renderItem = ({ item }: any) => {
-    const status = getExpiryStatus(item.expiryDate);
+    const status = getExpiryStatus(item.daysUntilExpiration);
 
     return (
       <Animated.View style={[styles.itemContainer, styles[status], { opacity: fadeAnim }]}>
         <Text style={styles.itemText}>{item.name}</Text>
-        <Text style={styles.expiryText}>Expires on: {item.expiryDate}</Text>
+        <Text style={styles.expiryText}>Days Remaining: {item.daysUntilExpiration}</Text>
       </Animated.View>
     );
   };
