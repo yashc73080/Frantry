@@ -84,6 +84,8 @@ const getRecipe = async () => {
 
 const sendRecipe = async () => {
   const reply = await getRecipe();
-  const json = `{"recipe":${reply}}`;
-  return JSON.parse(json);
+  const json = `{"recipe": "${reply}"}`;
+  console.log(reply);
+  const fix = JSON.stringify(json);
+  return JSON.parse(fix);
 }
