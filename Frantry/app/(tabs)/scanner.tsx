@@ -40,20 +40,47 @@ export default function Scanner() {
     }
   };
 
+  const extractFoodItems = (ocrText: string): string[] => {
+    // Split text into lines and clean up extra spaces
+    const lines = ocrText.split("\n").map(line => line.trim());
+  
+    // Regex pattern to detect prices (e.g., "$4.99", "-15.00")
+    const priceRegex = /\$\d+(\.\d{2})?/;
+  
+    // Exclude unwanted words
+    const blacklist = new Set(["SPECIAL", "SUBTOTAL", "TOTAL", "LOYALTY", "CHANGE", "CASH", "BALANCE", "DISCOUNT"]);
+  
+    let items: string[] = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+  
+      // Skip empty lines or unwanted words
+      if (!line || blacklist.has(line)) {
+        continue;
+      }
+  
+      // If the line contains a price, assume the previous line is the food item
+      if (priceRegex.test(line) && i > 0) {
+        const prevLine = lines[i - 1];
+  
+        // Ensure previous line is a valid food item (not price, special words, or numeric values)
+        if (!priceRegex.test(prevLine) && prevLine.length > 3 && !blacklist.has(prevLine) && !/\d/.test(prevLine)) {
+          items.push(prevLine);
+        }
+      }
+    }
+  
+    return items;
+  };
+  
   const ocrImage = async (base64Image: string) => {
     try {
       const requestPayload = {
         requests: [
           {
-            image: {
-              content: base64Image, // Use the Base64 image directly
-            },
-            features: [
-              {
-                type: 'TEXT_DETECTION', // Specify that you want text detection
-                maxResults: 1,
-              },
-            ],
+            image: { content: base64Image },
+            features: [{ type: "TEXT_DETECTION", maxResults: 1 }],
           },
         ],
       };
@@ -62,28 +89,32 @@ export default function Scanner() {
         `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_CLOUD_VISION_API_KEY}`,
         requestPayload
       );
-
-      const text = apiResponse.data.responses[0].fullTextAnnotation.text;
-      console.log('Extracted Text:', text);
+  
+      const extractedText = apiResponse.data.responses[0].fullTextAnnotation.text;
+      console.log("Raw OCR Text:", extractedText);
+  
+      const filteredItems = extractFoodItems(extractedText);
+      console.log("Filtered Food Items:", filteredItems);
+  
     } catch (error) {
-      console.error('Error with OCR:', error);
+      console.error("Error with OCR:", error);
     }
   };
 
-  const uploadImageToBackend = async (base64Image: string): Promise<void> => {
-    try {
-      const response = await fetch("http://10.74.126.23:5000/image", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ image: base64Image }),
-      });
-      const data = await response.json();
-      console.log("OCR Response:", data);
-    } catch (error) {
-      console.error("uploadImageToBackend error:", error);
-      Alert.alert("Error", "Image upload failed.");
-    }
-  };
+  // const uploadImageToBackend = async (base64Image: string): Promise<void> => {
+  //   try {
+  //     const response = await fetch("http://10.74.126.23:5000/image", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" },
+  //       body: JSON.stringify({ image: base64Image }),
+  //     });
+  //     const data = await response.json();
+  //     console.log("OCR Response:", data);
+  //   } catch (error) {
+  //     console.error("uploadImageToBackend error:", error);
+  //     Alert.alert("Error", "Image upload failed.");
+  //   }
+  // };
 
   return (
     <View style={styles.container}>
