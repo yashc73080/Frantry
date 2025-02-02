@@ -167,29 +167,17 @@ export default function Scanner() {
         requestPayload
       );
   
-      const extractedText = apiResponse.data.responses[0]?.fullTextAnnotation?.text;
+      const extractedText = apiResponse.data.responses[0].fullTextAnnotation.text;
       console.log("Raw OCR Text:", extractedText);
   
-      if (!extractedText) {
-        console.error("No text extracted.");
-        return;
-      }
-  
-      const foodItems = extractFoodItems(extractedText);
-      console.log("Filtered Food Items:", foodItems);
-  
-      const foodData = await inferExpiry(foodItems);
-      console.log("Final Output:", foodData);
-  
-      if (foodData.length > 0) {
-        await sendDataToBackend(foodData);
-      }
+      const filteredItems = extractFoodItems(extractedText);
+      console.log("Filtered Food Items:", filteredItems);
   
     } catch (error) {
       console.error("Error with OCR:", error);
     }
   };
-  
+
   return (
     <View style={styles.container}>
       <CameraView style={styles.camera} facing={facing} ref={cameraRef}>
@@ -221,11 +209,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: "center" },
   camera: { flex: 1 },
   overlay: {
-    position: "relative",
-    top: 10,
-    flexDirection: "row",
-    width: "100%",
-    justifyContent: "space-around",
+    position: "absolute", // Change to absolute to position it at the bottom
+    bottom: 20, // Position at the bottom of the screen
+    left: 0,
+    right: 0,
+    justifyContent: "center", // Center horizontally
     alignItems: "center",
   },
   flipButton: {

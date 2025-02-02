@@ -86,6 +86,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: 'Arial',
     textTransform: 'uppercase', // Adding a rustic capitalized feel
+    marginTop: 40, // Added marginTop to push the title down
   },
   itemContainer: {
     padding: 18,
