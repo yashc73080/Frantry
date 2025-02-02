@@ -3,5 +3,6 @@ export interface IItem {
     expiryDate: Date;
     category?: string;
     createdAt?: Date;
+    expiryLevel?: string;
   }
   
