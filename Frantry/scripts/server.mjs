@@ -1,5 +1,9 @@
 import express from 'express';
 import cors from 'cors';
+import dotenv from 'dotenv';
+
+dotenv.config({ path: './.env.local' });
+const IP_ADDRESS = process.env.IP_ADDRESS;
 
 const app = express();
 app.use(cors());
@@ -19,6 +23,6 @@ app.post('/image', (req, res) => {
   res.json({ success: true });
 });
 
-app.listen(5000, '10.74.126.23', () => { // TODO change this
-  console.log('Server running on http://10.74.126.23:5000');
+app.listen(5000, IP_ADDRESS, () => {
+  console.log(`Server running on http://${IP_ADDRESS}:5000`);
 });
