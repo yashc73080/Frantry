@@ -109,14 +109,20 @@ export default async function sendRecipe() {
       // Wrap the response in a JSON object
       const jsonObject = { recipe: reply };
 
+      var title;
+      var  content;
       // Extract title (first line surrounded by **)
       const match = reply.match(/\*\*(.*?)\*\*/);
       if (!match) {
-          throw new Error("No title found in recipe text");
+         title = '**Recipe**';
+         content = reply;
       }
-
-      const title = match[0].replace(/\*/g, '').trim(); // Remove '**' from title
-      const content = reply.split(match[0])[1]?.trim() || "No content available";
+      else {
+        title = match[0].replace(/\*/g, '').trim(); // Remove '**' from title
+        content = reply.split(match[0])[1]?.trim() || "No content available";
+      }
+      
+      
 
       // Final structured object
       const formattedRecipe = {
