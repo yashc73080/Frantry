@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Card, Button } from 'react-native-paper';
+import Typewriter from 'react-native-typewriter';
 
 // Define types for recipe data
 interface Recipe {
@@ -18,13 +19,14 @@ const RecipesScreen: React.FC = () => {
   const fetchRecipe = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('https://example.com/getRecipe');
-      const data = await response.json();
+      const response = await fetch('http://10.74.126.23:5000/api/items/recipes');
+      const text = await response.json();
+      console.log(text.recipe);
       const fetchedRecipe: Recipe = {
         id: '1',
-        title: 'Generated Recipe',
+        title: text.title,
         description: 'This recipe was fetched from the API.',
-        content: data.recipeContent, // assuming API returns { recipeContent: 'Some recipe string here' }
+        content: text.content, // assuming API returns { recipeContent: 'Some recipe string here' }
       };
       setSelectedRecipe(fetchedRecipe);
     } catch (error) {
@@ -45,9 +47,7 @@ const RecipesScreen: React.FC = () => {
       <Card style={styles.card}>
         <Card.Content>
           <Text style={styles.recipeTitle}>{item.title}</Text>
-          <Text style={styles.recipeDescription}>
-            {item.description}
-          </Text>
+          <Text style={styles.recipeDescription}>{item.description}</Text>
         </Card.Content>
       </Card>
     </TouchableOpacity>
@@ -59,12 +59,10 @@ const RecipesScreen: React.FC = () => {
         <ActivityIndicator size="large" color="black" />
       ) : selectedRecipe ? (
         <View style={styles.recipeDetail}>
-          <Text style={styles.recipeDetailTitle}>
-            {selectedRecipe.title}
-          </Text>
-          <Text style={styles.recipeDetailDescription}>
+          <Text style={styles.recipeDetailTitle}>{selectedRecipe.title}</Text>
+          <Typewriter style={styles.recipeDetailDescription} typing={2} minDelay={20}>
             {selectedRecipe.content}
-          </Text>
+          </Typewriter>
           <Button mode="contained" onPress={() => setSelectedRecipe(null)} style={styles.backButton}>
             Back to Recipes
           </Button>
@@ -73,10 +71,10 @@ const RecipesScreen: React.FC = () => {
         <View style={styles.content}>
           <FlatList
             data={[{
-                id: '1',
-                title: 'Spaghetti Carbonara',
-                description: 'A classic pasta dish.',
-                content: 'This is a simple yet delicious spaghetti carbonara recipe.' // Add the content field
+              id: '1',
+              title: 'Spaghetti Carbonara',
+              description: 'A classic pasta dish.',
+              content: 'This is a simple yet delicious spaghetti carbonara recipe.' // Add the content field
             }]}
             renderItem={renderRecipeItem}
             keyExtractor={(item) => item.id}
