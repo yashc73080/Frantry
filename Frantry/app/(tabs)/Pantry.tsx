@@ -2,25 +2,11 @@ import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, FlatList, StyleSheet, Animated } from 'react-native';
 import axios from 'axios';
 
-// Sample Pantry data (Replace with actual data when backend is integrated)
-const pantryData = [
-  // { id: '1', name: 'Milk', expiryDate: '2025-02-05' },
-  // { id: '2', name: 'Eggs', expiryDate: '2025-02-03' },
-  // { id: '3', name: 'Tomatoes', expiryDate: '2025-01-10' },
-  // { id: '4', name: 'Chicken Breast', expiryDate: '2025-02-07' },
-  // { id: '5', name: 'Bread', expiryDate: '2025-02-01' },
-  // { id: '6', name: 'Cheese', expiryDate: '2025-02-10' },
-  // { id: '7', name: 'Lettuce', expiryDate: '2025-02-08' },
-  // { id: '8', name: 'Carrots', expiryDate: '2025-02-12' },
-  // { id: '9', name: 'Potatoes', expiryDate: '2025-02-20' },
-  // { id: '10', name: 'Butter', expiryDate: '2025-02-15' },
-  // { id: '11', name: 'Cucumbers', expiryDate: '2025-02-18' },
-  // { id: '12', name: 'Yogurt', expiryDate: '2025-02-22' },
-  // { id: '13', name: 'Apples', expiryDate: '2025-02-28' },
-  // { id: '14', name: 'Oranges', expiryDate: '2025-03-05' },
-  // { id: '15', name: 'Spinach', expiryDate: '2025-02-10' },
-  // Add more items as needed
-];
+type PantryItem = {
+  id: string;
+  name: string;
+  daysUntilExpiration: number;
+};
 
 // Helper function to determine item status based on expiry
 const getExpiryStatus = (daysLeft: number) => {
@@ -31,9 +17,9 @@ const getExpiryStatus = (daysLeft: number) => {
 };
 
 const PantryList = () => {
+  const [pantryData, setPantryData] = useState<PantryItem[]>([]);
   const fadeAnim = useRef(new Animated.Value(0)).current; // Declare ref here
 
-  const [pantryData, setPantryData] = useState([]); // State for pantry data
   const [loading, setLoading] = useState(true); // State for loading indicator
   const [error, setError] = useState(''); // State for error message
 
@@ -42,7 +28,7 @@ const PantryList = () => {
       try {
         // Replace with your actual backend API URL
         const response = await axios.get('http://10.74.126.23:5000/api/items/getAllItems');
-        setPantryData(response.data); // Update state with fetched data
+        setPantryData(response.data as PantryItem[]); // Update state with fetched data
         setLoading(false); // Set loading to false after data is fetched
       } catch (err) {
         setError('Failed to fetch pantry data'); // Handle any errors
@@ -81,7 +67,7 @@ const PantryList = () => {
       <Text style={styles.header}>Pantry List</Text>
       <FlatList
         data={sortedPantryData} // Use sorted data here
-        keyExtractor={(item) => item.id}
+        keyExtractor={(item, index) => item.id?.toString() || index.toString()} // Fallback to index if id is missing
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
       />
