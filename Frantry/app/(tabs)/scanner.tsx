@@ -167,17 +167,29 @@ export default function Scanner() {
         requestPayload
       );
   
-      const extractedText = apiResponse.data.responses[0].fullTextAnnotation.text;
+      const extractedText = apiResponse.data.responses[0]?.fullTextAnnotation?.text;
       console.log("Raw OCR Text:", extractedText);
   
-      const filteredItems = extractFoodItems(extractedText);
-      console.log("Filtered Food Items:", filteredItems);
+      if (!extractedText) {
+        console.error("No text extracted.");
+        return;
+      }
+  
+      const foodItems = extractFoodItems(extractedText);
+      console.log("Filtered Food Items:", foodItems);
+  
+      const foodData = await inferExpiry(foodItems);
+      console.log("Final Output:", foodData);
+  
+      if (foodData.length > 0) {
+        await sendDataToBackend(foodData);
+      }
   
     } catch (error) {
       console.error("Error with OCR:", error);
     }
   };
-
+  
   return (
     <View style={styles.container}>
       <CameraView style={styles.camera} facing={facing} ref={cameraRef}>
