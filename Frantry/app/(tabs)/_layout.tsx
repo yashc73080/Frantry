@@ -13,7 +13,7 @@ const MyComponent = () => {
   const [routes] = React.useState([
     { key: 'pantry', title: 'My Pantry', focusedIcon: 'wardrobe', unfocusedIcon:'wardrobe-outline' },
     { key: 'scanner', title: 'Camera', focusedIcon: 'camera',unfocusedIcon: 'camera-outline' },
-    { key: 'favorites', title: 'Favorites', focusedIcon: 'heart', unfocusedIcon: 'heart-outline' },
+    // { key: 'favorites', title: 'Favorites', focusedIcon: 'heart', unfocusedIcon: 'heart-outline' },
     { key: 'settings', title: 'Settings', focusedIcon: 'cog', unfocusedIcon: 'cog-outline' },
     { key: 'recipes', title: 'Recipes', focusedIcon: 'food-croissant', unfocusedIcon: 'food-croissant' }
   ]);
@@ -21,7 +21,6 @@ const MyComponent = () => {
   const renderScene = BottomNavigation.SceneMap({
     pantry: PantryList,
     scanner: Scanner,
-    favorites: HomeScreen,
     settings: SettingsScreen,
     recipes: RecipesScreen
   });
