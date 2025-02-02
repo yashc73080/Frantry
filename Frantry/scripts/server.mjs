@@ -19,6 +19,6 @@ app.post('/image', (req, res) => {
   res.json({ success: true });
 });
 
-app.listen(5000, '10.74.87.22', () => { // TODO change this
-  console.log('Server running on http://10.74.87.22:5000');
+app.listen(5000, '10.74.126.23', () => { // TODO change this
+  console.log('Server running on http://10.74.126.23:5000');
 });
