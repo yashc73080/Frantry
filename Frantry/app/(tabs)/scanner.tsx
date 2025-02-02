@@ -1,17 +1,18 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useState, useRef } from "react";
-import { StyleSheet, Text, View, Alert } from "react-native";
+import { StyleSheet, Text, View, Alert, ActivityIndicator } from "react-native";
 import axios from 'axios';
 import { Button } from 'react-native-paper';
 
 const GOOGLE_CLOUD_VISION_API_KEY = 'AIzaSyDSO7Puxg9hZ2cxuB_UR19PW_L2CkD87Gs';
-const OPENROUTER_API_KEY = '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'; 
+const OPENROUTER_API_KEY = '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'; 
 
 export default function Scanner() {
   const cameraRef = useRef<CameraView | null>(null);
   const [facing, setFacing] = useState<'back' | 'front'>('back');
   const [permission, requestPermission] = useCameraPermissions();
   const [photoTaken, setPhotoTaken] = useState(false);  // State to track photo status
+  const [processing, setProcessing] = useState(false);   // New state for loading
 
   if (!permission) return <View />;
   if (!permission.granted) {
@@ -133,14 +134,14 @@ export default function Scanner() {
         foodData
       );
       console.log('Data successfully sent to backend:', response.data);
-      Alert.alert('Success', 'Food data uploaded successfully!');
     } catch (error) {
       console.error('Error sending data to backend:', error);
-      Alert.alert('Error', 'Failed to send data to server. Please try again.');
+      throw error;
     }
   };
 
   const ocrImage = async (base64Image: string) => {
+    setProcessing(true);
     try {
       const requestPayload = {
         requests: [
@@ -161,6 +162,7 @@ export default function Scanner() {
   
       if (!extractedText) {
         console.error("No text extracted.");
+        setProcessing(false);
         return;
       }
   
@@ -172,10 +174,16 @@ export default function Scanner() {
   
       if (foodData.length > 0) {
         await sendDataToBackend(foodData);
+        setProcessing(false);
+        Alert.alert('Success', 'Food data uploaded successfully!');
+      } else {
+        setProcessing(false);
       }
   
     } catch (error) {
       console.error("Error with OCR:", error);
+      setProcessing(false);
+      Alert.alert("Error", "An error occurred during processing. Please try again.");
     }
   };
   
@@ -202,6 +210,12 @@ export default function Scanner() {
           {photoTaken ? "Captured" : "Capture"}
         </Button>
       </View>
+      {processing && (
+        <View style={styles.loadingOverlay}>
+          <ActivityIndicator size="large" color="#0000ff" />
+          <Text style={styles.loadingText}>Food data processing...</Text>
+        </View>
+      )}
     </View>
   );
 }
@@ -210,11 +224,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: "center" },
   camera: { flex: 1 },
   overlay: {
-    position: "absolute", // Change to absolute to position it at the bottom
-    bottom: 20, // Position at the bottom of the screen
+    position: "absolute",
+    bottom: 20,
     left: 0,
     right: 0,
-    justifyContent: "center", // Center horizontally
+    justifyContent: "center",
     alignItems: "center",
   },
   flipButton: {
@@ -243,5 +257,20 @@ const styles = StyleSheet.create({
     backgroundColor: "#007bff",
     padding: 10,
     borderRadius: 8,
+  },
+  loadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0,0,0,0.3)",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 18,
+    color: "#000",
   },
 });
