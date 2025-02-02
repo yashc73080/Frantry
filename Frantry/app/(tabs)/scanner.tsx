@@ -5,11 +5,13 @@ import axios from 'axios';
 // import { GOOGLE_CLOUD_VISION_API_KEY } from "@env";
 
 const GOOGLE_CLOUD_VISION_API_KEY = 'AIzaSyDSO7Puxg9hZ2cxuB_UR19PW_L2CkD87Gs';
+const OPENROUTER_API_KEY = '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'; 
 
 export default function Scanner() {
   const cameraRef = useRef<CameraView | null>(null);
   const [facing, setFacing] = useState<'back' | 'front'>('back');
   const [permission, requestPermission] = useCameraPermissions();
+  const [expiryData, setExpiryData] = useState<any[]>([]);
 
   if (!permission) return <View />;
   if (!permission.granted) {
@@ -73,7 +75,123 @@ export default function Scanner() {
   
     return items;
   };
+
+  // TODO hallucinating, need to maybe include filtering with ai (regex)
+  const inferExpiry = async (foodItems: string[]) => {
+    try {
+        const prompt = `For each of the following food items, estimate how many days they will last before they expire. 
+        Additionally, standardize each food item name to a more common format:
+        - Convert all uppercase names to title case.
+        - Remove unnecessary descriptors (e.g., "Brushed Potatoes" → "Potatoes", "Green Apple" → "Apple").
+        - Generalize names where possible (e.g., "Iceberg Lettuce" → "Lettuce", "Cavendish Banana" → "Banana").
+        
+        ${foodItems.map((item, index) => `${index + 1}. ${item}`).join("\n")}
+                
+        Respond **only** in JSON format as an array of objects, each with:
+        - "name": the standardized food item name
+        - "daysUntilExpiration": an integer estimate of how many days until it expires
+        - "expiryLevel": "high" (≤2 days), "medium" (3-5 days), or "low" (≥6 days)
+
+        Example JSON Output:
+        \`\`\`json
+        [
+          {"name": "Banana", "daysUntilExpiration": 5, "expiryLevel": "medium"},
+          {"name": "Broccoli", "daysUntilExpiration": 3, "expiryLevel": "medium"}
+        ]
+        \`\`\`
+        `;
+
+        const response = await axios.post(
+            "https://openrouter.ai/api/v1/chat/completions",
+            {
+                model: "google/gemini-2.0-flash-exp:free",
+                messages: [
+                    { role: "system", content: "You must respond **only** in JSON format. No extra text, explanations, or formatting." },
+                    { role: "user", content: prompt }
+                ],
+                max_tokens: 750,
+                temperature: 0.5,
+            },
+            {
+                headers: {
+                    "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+                    "Content-Type": "application/json",
+                },
+            }
+        );
+
+        const choices = response.data.choices;
+        if (!choices || choices.length === 0 || !choices[0].message || !choices[0].message.content) {
+            console.error("Invalid response structure:", response.data);
+            return [];
+        }
+
+        let responseText = choices[0].message.content;
+        responseText = responseText.replace(/```json|```/g, "").trim();
+
+        const result = JSON.parse(responseText);
+        console.log("Inferred Expiry Data:", result);
+        return result;
+    } catch (error) {
+        console.error("Error inferring expiration:", error);
+        return [];
+    }
+  };
+
+  // const sendDataToBackend = async (expiryData: any) => {
+  //   try {
+  //     const response = await axios.post("http://10.74.87.22:5000/scannedData", expiryData, {
+  //       headers: { "Content-Type": "application/json" },
+  //     });
   
+  //     console.log("Backend Response:", response.data);
+  //   } catch (error) {
+  //     console.error("Error sending data to backend:", error);
+  //   }
+  // };
+
+  // const sendDataToBackend = async (expiryData: any) => {
+  //   try {
+  //     const response = await fetch("http://10.74.87.22:5000/scannedData", {
+  //       method: "POST",
+  //       headers: {
+  //         "Content-Type": "application/json",
+  //       },
+  //       body: JSON.stringify(expiryData),
+  //     });
+  
+  //     if (!response.ok) {
+  //       throw new Error(`HTTP error! Status: ${response.status}`);
+  //     }
+  
+  //     const data = await response.json();
+  //     console.log("Backend Response:", data);
+  //   } catch (error) {
+  //     console.error("Error sending data to backend:", error);
+  //   }
+  // };
+
+  const sendDataToBackend = async () => {
+    try {
+      const response = await fetch('http://10.74.87.22:5000/scannedData', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ expiryData }),
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log('Backend Response:', result);
+        setExpiryData([]);
+      }
+    }
+    catch (error) {
+      console.error('Error sending data to backend:', error);
+    }
+  }
+
   const ocrImage = async (base64Image: string) => {
     try {
       const requestPayload = {
@@ -90,32 +208,30 @@ export default function Scanner() {
         requestPayload
       );
   
-      const extractedText = apiResponse.data.responses[0].fullTextAnnotation.text;
+      const extractedText = apiResponse.data.responses[0]?.fullTextAnnotation?.text;
       console.log("Raw OCR Text:", extractedText);
   
-      const filteredItems = extractFoodItems(extractedText);
-      console.log("Filtered Food Items:", filteredItems);
+      if (!extractedText) {
+        console.error("No text extracted.");
+        return;
+      }
+  
+      const foodItems = extractFoodItems(extractedText);
+      console.log("Filtered Food Items:", foodItems);
+  
+      const foodData = await inferExpiry(foodItems);
+      console.log("Final Output:", foodData);
+  
+      if (foodData.length > 0) {
+        setExpiryData(foodData);
+        await sendDataToBackend();
+      }
   
     } catch (error) {
       console.error("Error with OCR:", error);
     }
   };
-
-  // const uploadImageToBackend = async (base64Image: string): Promise<void> => {
-  //   try {
-  //     const response = await fetch("http://10.74.126.23:5000/image", {
-  //       method: "POST",
-  //       headers: { "Content-Type": "application/json" },
-  //       body: JSON.stringify({ image: base64Image }),
-  //     });
-  //     const data = await response.json();
-  //     console.log("OCR Response:", data);
-  //   } catch (error) {
-  //     console.error("uploadImageToBackend error:", error);
-  //     Alert.alert("Error", "Image upload failed.");
-  //   }
-  // };
-
+  
   return (
     <View style={styles.container}>
       <CameraView style={styles.camera} facing={facing} ref={cameraRef}>
