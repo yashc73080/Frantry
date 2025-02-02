@@ -5,7 +5,7 @@ import axios from 'axios';
 import { Button } from 'react-native-paper';
 
 const GOOGLE_CLOUD_VISION_API_KEY = 'AIzaSyDSO7Puxg9hZ2cxuB_UR19PW_L2CkD87Gs';
-const OPENROUTER_API_KEY = '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'; 
+const OPENROUTER_API_KEY = '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'; 
 
 export default function Scanner() {
   const cameraRef = useRef<CameraView | null>(null);

@@ -74,7 +74,7 @@ const RecipesScreen: React.FC = () => {
           <ScrollView contentContainerStyle={styles.recipeDetailScroll}>
             <View style={styles.recipeDetail}>
               <Text style={styles.recipeDetailTitle}>{selectedRecipe.title}</Text>
-              <Typewriter style={styles.recipeDetailDescription} typing={2} minDelay={20}>
+              <Typewriter style={styles.recipeDetailDescription} typing={1} minDelay={20}>
                 {selectedRecipe.content}
               </Typewriter>
             </View>
