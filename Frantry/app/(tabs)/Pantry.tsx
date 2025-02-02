@@ -9,10 +9,16 @@ type PantryItem = {
 };
 
 // Helper function to determine item status based on expiry
-const getExpiryStatus = (daysLeft: number) => {
-  if (daysLeft <= 0) return 'expired'; // Item has expired
-  if (daysLeft <= 3) return 'close'; // Item will expire soon
-  return 'fresh'; // Item is fresh
+const getExpiryStatus = (daysLeft: string) => {
+  
+  switch(daysLeft){
+    case 'high':
+        return 'expired';
+    case 'medium':
+        return 'close';
+    default:
+      return 'fresh';
+  }
 };
 
 const PantryList = () => {
@@ -54,8 +60,8 @@ const PantryList = () => {
     }).start();
   }, [fadeAnim]);
 
-  const renderItem = ({ item }: { item: PantryItem }) => {
-    const status = getExpiryStatus(item.daysUntilExpiration);
+  const renderItem = ({ item }: any) => {
+    const status = getExpiryStatus(item.expiryLevel);
 
     return (
       <Animated.View style={[styles.itemContainer, styles[status], { opacity: fadeAnim }]}>

@@ -131,4 +131,31 @@ router.put("/:id", async (_req: Request, res: Response) => {
     }
   });
 
+  router.get("/deleteAllItems", async (_req: Request, res: Response) => {
+    try {
+      // Retrieve all items from the database
+      const items = await Item.find();
+  
+      if (items.length === 0) {
+        res.status(404).json({ error: "❌ No items found to delete" });
+      }
+      else {
+
+      // Loop through each item and delete it by ID
+      for (const item of items) {
+        await Item.findByIdAndDelete(item._id);
+      }
+  
+      res.status(200).json({ message: "✅ All items deleted successfully" });
+      }
+  
+  
+    } catch (error) {
+      console.error("Error deleting all items:", error); // Log error for debugging
+      res.status(500).json({ error: "❌ Server error" });
+    }
+  });
+  
+  
+  
 export default router;

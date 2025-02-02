@@ -55,7 +55,7 @@ const getRecipe = async () => {
   try {
     const p = await run()
     // console.log(`The lists are High: ${high}, Med: ${medium}, Low: ${low}`);
-    const req  = `Make a popular recipe that prioritizes at least one of the following ingredients: ${high}. Most of the remaining ingredients must come from the following: ${medium}, ${low}. Limit 200 words. No extra comments. Enumerate the steps.`;
+    const req  = `Make a tasty, delicious,popular recipe that prioritizes at least one of the following ingredients: ${high}. Most of the remaining ingredients must come from the following: ${medium}, ${low}. Limit 200 words. No extra comments. Enumerate the steps.`;
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
