@@ -7,7 +7,8 @@ const ItemSchema = new Schema<IItemModel>({
   name: { type: String, required: true },
   expiryDate: { type: Date, required: true },
   category: { type: String },
-  createdAt: { type: Date, default: Date.now }
+  createdAt: { type: Date, default: Date.now },
+  expiryLevel: { type: String , default: "Green"},
 });
 
 export default mongoose.model<IItemModel>("Item", ItemSchema);

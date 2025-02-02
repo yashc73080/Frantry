@@ -1,8 +1,7 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useState, useEffect, useRef } from "react";
 import { TouchableOpacity, StyleSheet, Text, View, Alert } from "react-native";
-import * as ImageManipulator from 'expo-image-manipulator';
-import { Platform } from "react-native";
+
 
 export default function App() {
   const cameraRef = useRef<CameraView | null>(null);

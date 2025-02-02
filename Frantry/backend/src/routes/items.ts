@@ -7,8 +7,8 @@ const router = express.Router();
 // POST: Add a new pantry item
 router.post("/", async (req: Request, res: Response) => {
   try {
-    const { name, expiryDate, category } = req.body;
-    const newItem = new Item({ name, expiryDate, category });
+    const { name, expiryDate, category, expiryLevel} = req.body;
+    const newItem = new Item({ name, expiryDate, category,expiryLevel });
     await newItem.save();
     res.status(201).json(newItem);
   } catch (error) {
@@ -17,36 +17,6 @@ router.post("/", async (req: Request, res: Response) => {
 });
 
 
-
-router.post("/image", async (req: Request, res: Response) => {
-  try {
-    const { image } = req.body;
-
-    if (!image) {
-      res.status(400).json({ error: "Image is required" });
-    } else {
-      // Validate image size (e.g., 5MB limit)
-      const imageSize = Buffer.from(image, "base64").length;
-      if (imageSize > 5 * 1024 * 1024) { // 5MB
-        res.status(400).json({ error: "Image size exceeds 5MB" });
-      } else {
-        console.log("Received image:", image);
-
-        // Save the base64 image as a file
-        const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
-        const buffer = Buffer.from(base64Data, "base64");
-        const filePath = "uploads/image.png"; // Save as PNG file
-        fs.writeFileSync(filePath, buffer);
-
-        console.log(`Image saved to ${filePath}`);
-        res.status(200).json({ message: "Image received and saved successfully", filePath });
-      }
-    }
-  } catch (error) {
-    console.error("Error processing image:", error);
-    res.status(500).json({ error: "Internal server error" });
-  }
-});
 
 // GET: Fetch all pantry items
 router.get("/", async (_req: Request, res: Response) => {
@@ -61,11 +31,11 @@ router.get("/", async (_req: Request, res: Response) => {
 router.put("/:id", async (_req: Request, res: Response) => {
     try {
       const {id} = _req.params;
-      const {name, expiryDate,category} = _req.body;
+      const {name, expiryDate,category,expiryLevel} = _req.body;
 
       const updatedItem = await Item.findByIdAndUpdate(
         id,
-        { name, expiryDate, category },
+        { name, expiryDate, category, expiryLevel },
         { new: true } // Return the updated document
       );
   
