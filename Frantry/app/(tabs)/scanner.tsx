@@ -11,6 +11,7 @@ export default function Scanner() {
   const cameraRef = useRef<CameraView | null>(null);
   const [facing, setFacing] = useState<'back' | 'front'>('back');
   const [permission, requestPermission] = useCameraPermissions();
+  const [photoTaken, setPhotoTaken] = useState(false);  // State to track photo status
 
   if (!permission) return <View />;
   if (!permission.granted) {
@@ -31,8 +32,11 @@ export default function Scanner() {
       try {
         const photo = await cameraRef.current.takePictureAsync({ base64: true });
         if (photo?.base64) {
-          alert(`Photo captured: ${photo.width}x${photo.height}`);
           ocrImage(photo.base64);
+          setPhotoTaken(true);  // Set photoTaken to true after successful capture
+
+          // Reset the photoTaken state after 2 seconds (or any preferred time)
+          setTimeout(() => setPhotoTaken(false), 2000);
         }
       } catch (error) {
         console.error("takePhoto error:", error);
@@ -42,36 +46,21 @@ export default function Scanner() {
   };
 
   const extractFoodItems = (ocrText: string): string[] => {
-    // Split text into lines and clean up extra spaces
     const lines = ocrText.split("\n").map(line => line.trim());
-  
-    // Regex pattern to detect prices (e.g., "$4.99", "-15.00")
     const priceRegex = /\$\d+(\.\d{2})?/;
-  
-    // Exclude unwanted words
     const blacklist = new Set(["SPECIAL", "SUBTOTAL", "TOTAL", "LOYALTY", "CHANGE", "CASH", "BALANCE", "DISCOUNT"]);
   
     let items: string[] = [];
-    
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-  
-      // Skip empty lines or unwanted words
-      if (!line || blacklist.has(line)) {
-        continue;
-      }
-  
-      // If the line contains a price, assume the previous line is the food item
+      if (!line || blacklist.has(line)) continue;
       if (priceRegex.test(line) && i > 0) {
         const prevLine = lines[i - 1];
-  
-        // Ensure previous line is a valid food item (not price, special words, or numeric values)
         if (!priceRegex.test(prevLine) && prevLine.length > 3 && !blacklist.has(prevLine) && !/\d/.test(prevLine)) {
           items.push(prevLine);
         }
       }
     }
-  
     return items;
   };
 
@@ -208,9 +197,9 @@ export default function Scanner() {
           style={styles.captureButton}
           mode="contained"
           onPress={takePhoto}
-          icon="camera"
+          icon={photoTaken ? "check" : "camera"}  // Show check if photoTaken is true, else camera
         >
-          Capture
+          {photoTaken ? "Captured" : "Capture"}
         </Button>
       </View>
     </View>
