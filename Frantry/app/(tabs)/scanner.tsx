@@ -6,7 +6,7 @@ import axios from 'axios';
 
 const apiKey = 'AIzaSyDSO7Puxg9hZ2cxuB_UR19PW_L2CkD87Gs'; // Replace with your API key
 
-export default function App() {
+export default function Scanner() {
   const cameraRef = useRef<CameraView | null>(null);
   const [facing, setFacing] = useState<'back' | 'front'>('back');
   const [permission, requestPermission] = useCameraPermissions();
