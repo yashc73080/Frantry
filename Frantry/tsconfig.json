@@ -25,5 +25,5 @@
     "**/*.tsx",
     ".expo/types/**/*.ts",
     "expo-env.d.ts"
-  ]
+, "../backend/src/routes/apigen.ts"  ]
 }

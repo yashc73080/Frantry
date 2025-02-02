@@ -1,7 +1,7 @@
 import express, { Request, Response } from "express";
 import Item from "../models/Item";
 import fs from "fs";
-import sendRecipe from './apigen'
+import sendRecipe from "./apigen"
 
 const router = express.Router();
 
@@ -30,16 +30,35 @@ router.post("/addItem", async (req: Request, res: Response) => {
 // GET: Fetch all pantry items
 router.get("/getAllItems", async (_req: Request, res: Response) => {
   try {
-    const items = await Item.find();
+    const items = await Item.aggregate([
+      {
+        $addFields: {
+          expirySort: {
+            $switch: {
+              branches: [
+                { case: { $eq: ["$expiryLevel", "high"] }, then: 1 },
+                { case: { $eq: ["$expiryLevel", "medium"] }, then: 2 },
+                { case: { $eq: ["$expiryLevel", "low"] }, then: 3 }
+              ],
+              default: 4
+            }
+          }
+        }
+      },
+      { $sort: { expirySort: 1 } }, // Sort by numerical expirySort
+      { $project: { expirySort: 0 } } // Remove expirySort from final output
+    ]);
+
     res.json(items);
   } catch (error) {
     res.status(500).json({ error: "❌ Server error" });
   }
 });
 
+
 router.get("/recipes", async (_req: Request, res: Response) => {
   try {
-    console.log(`Recipe:`);
+    // console.log(`Recipe:`);
     const recipe = await sendRecipe();
     
     res.json(recipe);
