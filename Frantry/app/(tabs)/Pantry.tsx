@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, FlatList, StyleSheet, Animated } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, FlatList, StyleSheet, Animated, RefreshControl } from 'react-native';
 import axios from 'axios';
 
 type PantryItem = {
@@ -10,7 +10,6 @@ type PantryItem = {
 
 // Helper function to determine item status based on expiry
 const getExpiryStatus = (daysLeft: number) => {
-  
   if (daysLeft <= 0) return 'expired'; // Item has expired
   if (daysLeft <= 3) return 'close'; // Item will expire soon
   return 'fresh'; // Item is fresh
@@ -18,31 +17,44 @@ const getExpiryStatus = (daysLeft: number) => {
 
 const PantryList = () => {
   const [pantryData, setPantryData] = useState<PantryItem[]>([]);
-  const fadeAnim = useRef(new Animated.Value(0)).current; // Declare ref here
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [refreshing, setRefreshing] = useState(false); // State for pull-to-refresh
 
-  const [loading, setLoading] = useState(true); // State for loading indicator
-  const [error, setError] = useState(''); // State for error message
+  // Function to fetch pantry data
+  const fetchPantryData = async () => {
+    try {
+      const response = await axios.get('http://10.74.126.23:5000/api/items/getAllItems');
+      setPantryData(response.data as PantryItem[]);
+      setLoading(false);
+      setError('');
+    } catch (err) {
+      setError('Failed to fetch pantry data');
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchPantryData = async () => {
-      try {
-        // Replace with your actual backend API URL
-        const response = await axios.get('http://10.74.126.23:5000/api/items/getAllItems');
-        setPantryData(response.data as PantryItem[]); // Update state with fetched data
-        setLoading(false); // Set loading to false after data is fetched
-      } catch (err) {
-        setError('Failed to fetch pantry data'); // Handle any errors
-        setLoading(false); // Set loading to false even if there's an error
-      }
-    };
-
-    fetchPantryData(); // Call the fetch function when component mounts
+    fetchPantryData();
   }, []);
 
-  // Sort pantryData by expiryDate before rendering
-  const sortedPantryData = pantryData;
+  // Pull-to-refresh function
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchPantryData();
+    setRefreshing(false);
+  }, []);
 
-  const renderItem = ({ item }: any) => {
+  useEffect(() => {
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 800,
+      useNativeDriver: true,
+    }).start();
+  }, [fadeAnim]);
+
+  const renderItem = ({ item }: { item: PantryItem }) => {
     const status = getExpiryStatus(item.daysUntilExpiration);
 
     return (
@@ -53,24 +65,17 @@ const PantryList = () => {
     );
   };
 
-  // Using useEffect to trigger the fade animation once the component mounts
-  useEffect(() => {
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 800,
-      useNativeDriver: true,
-    }).start();
-  }, [fadeAnim]); // Fade animation triggers only once on component mount
-
   return (
     <View style={styles.container}>
       <Text style={styles.header}>Pantry List</Text>
       <FlatList
-        data={sortedPantryData} // Use sorted data here
-        keyExtractor={(item, index) => item.id?.toString() || index.toString()} // Fallback to index if id is missing
+        data={pantryData}
+        keyExtractor={(item, index) => item.id?.toString() || index.toString()}
         renderItem={renderItem}
         showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       />
+      {error ? <Text style={styles.errorText}>{error}</Text> : null}
     </View>
   );
 };
@@ -80,17 +85,17 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingTop: 50,
     paddingHorizontal: 16,
-    backgroundColor: '#f2e2c4', // Light wood-like background color
+    backgroundColor: '#f2e2c4',
   },
   header: {
     fontSize: 26,
     fontWeight: 'bold',
     marginBottom: 16,
-    color: '#6b4f32', // Dark brown text for rustic feel
+    color: '#6b4f32',
     textAlign: 'center',
     fontFamily: 'Arial',
-    textTransform: 'uppercase', // Adding a rustic capitalized feel
-    marginTop: 40, // Added marginTop to push the title down
+    textTransform: 'uppercase',
+    marginTop: 40,
   },
   itemContainer: {
     padding: 18,
@@ -102,31 +107,36 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     shadowOffset: { width: 0, height: 4 },
     elevation: 5,
-    backgroundColor: 'rgba(255, 255, 255, 0.7)', // Slight transparency for wood-like effect
+    backgroundColor: 'rgba(255, 255, 255, 0.7)',
   },
   itemText: {
     fontSize: 20,
     fontWeight: '500',
-    color: '#6b4f32', // Dark brown for the item text
-    fontFamily: 'Georgia', // Adding a serif font for rustic charm
+    color: '#6b4f32',
+    fontFamily: 'Georgia',
   },
   expiryText: {
     fontSize: 14,
     marginTop: 6,
     color: '#777',
-    fontFamily: 'Georgia', // Ensuring consistency with the rustic style
+    fontFamily: 'Georgia',
   },
   fresh: {
-    backgroundColor: '#e8f5e9', // light green
+    backgroundColor: '#e8f5e9',
     borderColor: '#66bb6a',
   },
   close: {
-    backgroundColor: '#fff9c4', // light yellow
+    backgroundColor: '#fff9c4',
     borderColor: '#fff176',
   },
   expired: {
-    backgroundColor: '#ffebee', // light red
+    backgroundColor: '#ffebee',
     borderColor: '#ef5350',
+  },
+  errorText: {
+    textAlign: 'center',
+    color: 'red',
+    marginTop: 10,
   },
 });
 
