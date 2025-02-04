@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, FlatList, StyleSheet, Animated, RefreshControl } from 'react-native';
 import axios from 'axios';
 
+const SERVER_URL = "https://frantry.onrender.com"
+
 type PantryItem = {
   id: string;
   name: string;
@@ -31,7 +33,7 @@ const PantryList = () => {
   // Function to fetch pantry data
   const fetchPantryData = async () => {
     try {
-      const response = await axios.get('http://10.74.126.23:5000/api/items/getAllItems');
+      const response = await axios.get(`${SERVER_URL}/api/items/getAllItems`);
       setPantryData(response.data as PantryItem[]);
       setLoading(false);
       setError('');

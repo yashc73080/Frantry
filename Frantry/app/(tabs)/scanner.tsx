@@ -4,7 +4,7 @@ import { StyleSheet, Text, View, Alert } from "react-native";
 import axios from "axios";
 import { Button, Card, ActivityIndicator as PaperActivityIndicator } from "react-native-paper";
 
-const SERVER_URL = "http://10.74.126.23:5000"
+const SERVER_URL = "https://frantry.onrender.com"
 
 export default function Scanner() {
   const cameraRef = useRef<CameraView | null>(null);
@@ -33,7 +33,7 @@ export default function Scanner() {
         const photo = await cameraRef.current.takePictureAsync({ base64: true , quality: 0.5});
         if (photo?.base64) {
           setProcessing(true);  // Set processing to true when photo is taken
-          const response = await axios.post(`{$SERVER_URL}/api/items/photo`, {
+          const response = await axios.post(`${SERVER_URL}/api/items/photo`, {
             image: photo.base64 // Sending the image as a JSON field
         }, {
             headers: {
@@ -46,6 +46,8 @@ export default function Scanner() {
           }
           else {
             Alert.alert("Error", "An error occurred during processing. Please try again.");
+          setProcessing(false);  // Set processing to false after successful upload
+
           }
           setPhotoTaken(true);  // Set photoTaken to true after successful capture
 
@@ -55,6 +57,7 @@ export default function Scanner() {
       } catch (error) {
         console.error("takePhoto error:", error);
         Alert.alert("Error", "Failed to capture photo.");
+        setProcessing(false);  // Set processing to false after successful upload
       }
     }
   };

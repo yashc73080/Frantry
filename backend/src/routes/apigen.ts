@@ -24,7 +24,7 @@ async function run() {
     // const col = db.collection("items");
     
     
-    const response = await fetch(`http://10.74.126.23:5000/api/items/getAllItems`, {
+    const response = await fetch(`${process.env.SERVER_URL}}/api/items/getAllItems`, {
       method: "GET",
     });
 
