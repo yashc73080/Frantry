@@ -1,15 +1,18 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useState, useRef } from "react";
 import { StyleSheet, Text, View, Alert } from "react-native";
-import axios from 'axios';
-import { Button } from 'react-native-paper';
+import axios from "axios";
+import { Button, Card, ActivityIndicator as PaperActivityIndicator } from "react-native-paper";
 
 const GOOGLE_CLOUD_VISION_API_KEY = 'AIzaSyDSO7Puxg9hZ2cxuB_UR19PW_L2CkD87Gs';
+const OPENROUTER_API_KEY = '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'; 
 
 export default function Scanner() {
   const cameraRef = useRef<CameraView | null>(null);
-  const [facing, setFacing] = useState<'back' | 'front'>('back');
+  const [facing, setFacing] = useState<"back" | "front">("back");
   const [permission, requestPermission] = useCameraPermissions();
+  const [photoTaken, setPhotoTaken] = useState(false);  // State to track photo status
+  const [processing, setProcessing] = useState(false);   // New state for loading
 
   if (!permission) return <View />;
   if (!permission.granted) {
@@ -30,8 +33,11 @@ export default function Scanner() {
       try {
         const photo = await cameraRef.current.takePictureAsync({ base64: true });
         if (photo?.base64) {
-          alert(`Photo captured: ${photo.width}x${photo.height}`);
           ocrImage(photo.base64);
+          setPhotoTaken(true);  // Set photoTaken to true after successful capture
+
+          // Reset the photoTaken state after 2 seconds (or any preferred time)
+          setTimeout(() => setPhotoTaken(false), 2000);
         }
       } catch (error) {
         console.error("takePhoto error:", error);
@@ -41,40 +47,111 @@ export default function Scanner() {
   };
 
   const extractFoodItems = (ocrText: string): string[] => {
-    // Split text into lines and clean up extra spaces
     const lines = ocrText.split("\n").map(line => line.trim());
-  
-    // Regex pattern to detect prices (e.g., "$4.99", "-15.00")
     const priceRegex = /\$\d+(\.\d{2})?/;
-  
-    // Exclude unwanted words
-    const blacklist = new Set(["SPECIAL", "SUBTOTAL", "TOTAL", "LOYALTY", "CHANGE", "CASH", "BALANCE", "DISCOUNT"]);
-  
+    const blacklist = new Set([
+      "SPECIAL",
+      "SUBTOTAL",
+      "TOTAL",
+      "LOYALTY",
+      "CHANGE",
+      "CASH",
+      "BALANCE",
+      "DISCOUNT",
+    ]);
+
     let items: string[] = [];
-    
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i];
-  
-      // Skip empty lines or unwanted words
-      if (!line || blacklist.has(line)) {
-        continue;
-      }
-  
-      // If the line contains a price, assume the previous line is the food item
+      if (!line || blacklist.has(line)) continue;
       if (priceRegex.test(line) && i > 0) {
         const prevLine = lines[i - 1];
-  
-        // Ensure previous line is a valid food item (not price, special words, or numeric values)
-        if (!priceRegex.test(prevLine) && prevLine.length > 3 && !blacklist.has(prevLine) && !/\d/.test(prevLine)) {
+        if (
+          !priceRegex.test(prevLine) &&
+          prevLine.length > 3 &&
+          !blacklist.has(prevLine) &&
+          !/\d/.test(prevLine)
+        ) {
           items.push(prevLine);
         }
       }
     }
-  
     return items;
   };
-  
+
+  const inferExpiry = async (foodItems: string[]) => {
+    try {
+      const prompt = `For each of the following food items, estimate how many days they will last before they expire. 
+Additionally, standardize each food item name to a more common format:
+- Convert all uppercase names to title case.
+- Remove unnecessary descriptors (e.g., "Brushed Potatoes" → "Potatoes", "Green Apple" → "Apple").
+- Generalize names where possible (e.g., "Iceberg Lettuce" → "Lettuce", "Cavendish Banana" → "Banana").
+
+${foodItems.map((item, index) => `${index + 1}. ${item}`).join("\n")}
+
+Respond **only** in JSON format as an array of objects, each with:
+- "name": the standardized food item name
+- "daysUntilExpiration": an integer estimate of how many days until it expires
+- "expiryLevel": "high" (≤2 days), "medium" (3-5 days), or "low" (≥6 days)
+
+Example JSON Output:
+\`\`\`json
+[
+  {"name": "Banana", "daysUntilExpiration": 5, "expiryLevel": "medium"},
+  {"name": "Broccoli", "daysUntilExpiration": 3, "expiryLevel": "medium"}
+]
+\`\`\`
+`;
+
+      const response = await axios.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        {
+          model: "meta-llama/llama-3.2-3b-instruct:free",
+          messages: [
+            { role: "system", content: "You must respond **only** in JSON format. No extra text, explanations, or formatting." },
+            { role: "user", content: prompt },
+          ],
+          max_tokens: 750,
+          temperature: 0.5,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      const choices = response.data.choices;
+      if (!choices || choices.length === 0 || !choices[0].message || !choices[0].message.content) {
+        console.error("Invalid response structure:", response.data);
+        return [];
+      }
+
+      let responseText = choices[0].message.content;
+      responseText = responseText.replace(/```json|```/g, "").trim();
+
+      const result = JSON.parse(responseText);
+      console.log("Inferred Expiry Data:", result);
+      return result;
+    } catch (error) {
+      console.error("Error inferring expiration:", error);
+      return [];
+    }
+  };
+
+  const sendDataToBackend = async (foodData: any[]) => {
+    try {
+      const response = await axios.post("http://10.74.87.22:5000/api/items/scannedData", foodData);
+      console.log("Data successfully sent to backend:", response.data);
+    } catch (error) {
+      console.error("Error sending data to backend:", error);
+      throw error;
+    }
+  };
+
   const ocrImage = async (base64Image: string) => {
+    setProcessing(true);
     try {
       const requestPayload = {
         requests: [
@@ -89,42 +166,41 @@ export default function Scanner() {
         `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_CLOUD_VISION_API_KEY}`,
         requestPayload
       );
-  
-      const extractedText = apiResponse.data.responses[0].fullTextAnnotation.text;
+
+      const extractedText = apiResponse.data.responses[0]?.fullTextAnnotation?.text;
       console.log("Raw OCR Text:", extractedText);
-  
-      const filteredItems = extractFoodItems(extractedText);
-      console.log("Filtered Food Items:", filteredItems);
-  
+
+      if (!extractedText) {
+        console.error("No text extracted.");
+        setProcessing(false);
+        return;
+      }
+
+      const foodItems = extractFoodItems(extractedText);
+      console.log("Filtered Food Items:", foodItems);
+
+      const foodData = await inferExpiry(foodItems);
+      console.log("Final Output:", foodData);
+
+      if (foodData.length > 0) {
+        await sendDataToBackend(foodData);
+        setProcessing(false);
+        Alert.alert("Success", "Food data uploaded successfully!");
+      } else {
+        setProcessing(false);
+      }
     } catch (error) {
       console.error("Error with OCR:", error);
+      setProcessing(false);
+      Alert.alert("Error", "An error occurred during processing. Please try again.");
     }
   };
-
-  // const uploadImageToBackend = async (base64Image: string): Promise<void> => {
-  //   try {
-  //     const response = await fetch("http://10.74.126.23:5000/image", {
-  //       method: "POST",
-  //       headers: { "Content-Type": "application/json" },
-  //       body: JSON.stringify({ image: base64Image }),
-  //     });
-  //     const data = await response.json();
-  //     console.log("OCR Response:", data);
-  //   } catch (error) {
-  //     console.error("uploadImageToBackend error:", error);
-  //     Alert.alert("Error", "Image upload failed.");
-  //   }
-  // };
 
   return (
     <View style={styles.container}>
       <CameraView style={styles.camera} facing={facing} ref={cameraRef}>
         <View style={styles.overlay}>
-          <Button
-            style={styles.flipButton}
-            mode="outlined"
-            onPress={toggleCameraFacing}
-          >
+          <Button style={styles.flipButton} mode="outlined" onPress={toggleCameraFacing}>
             Flip
           </Button>
         </View>
@@ -134,11 +210,21 @@ export default function Scanner() {
           style={styles.captureButton}
           mode="contained"
           onPress={takePhoto}
-          icon="camera"
+          icon={photoTaken ? "check" : "camera"} // Show check if photoTaken is true, else camera
         >
-          Capture
+          {photoTaken ? "Captured" : "Capture"}
         </Button>
       </View>
+      {processing && (
+        <View style={styles.loadingOverlay}>
+          <Card style={styles.loadingCard}>
+            <Card.Content style={styles.loadingCardContent}>
+              <PaperActivityIndicator animating={true} size="large" color="#6200ee" />
+              <Text style={styles.loadingText}>Processing food data...</Text>
+            </Card.Content>
+          </Card>
+        </View>
+      )}
     </View>
   );
 }
@@ -147,11 +233,11 @@ const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: "center" },
   camera: { flex: 1 },
   overlay: {
-    position: "relative",
-    top: 10,
-    flexDirection: "row",
-    width: "100%",
-    justifyContent: "space-around",
+    position: "absolute",
+    bottom: 20,
+    left: 0,
+    right: 0,
+    justifyContent: "center",
     alignItems: "center",
   },
   flipButton: {
@@ -181,4 +267,29 @@ const styles = StyleSheet.create({
     padding: 10,
     borderRadius: 8,
   },
+  loadingOverlay: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(255,255,255,0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  loadingCard: {
+    padding: 20,
+    borderRadius: 8,
+    elevation: 4,
+  },
+  loadingCardContent: {
+    alignItems: "center",
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: "#333",
+  },
 });
+

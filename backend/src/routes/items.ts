@@ -5,6 +5,24 @@ import sendRecipe from "./apigen"
 
 const router = express.Router();
 
+// POST: Add scanned data to the database
+router.post("/scannedData", async (req: Request, res: Response) => {
+  try {
+    if (Array.isArray(req.body)) {
+      // If req.body is an array, insert multiple items
+      const newItems = await Item.insertMany(req.body);
+      res.status(201).json(newItems);
+    } else {
+      // If req.body is a single object, insert one item
+      const { name, daysUntilExpiration,expiryLevel } = req.body;
+      const newItem = new Item({ name, daysUntilExpiration, expiryLevel });
+      await newItem.save();
+      res.status(201).json(newItem);
+    }
+  } catch (error) {
+    res.status(500).json({ error: "❌ Server error" });
+  }
+});
 
 // POST: Add a new pantry item
 router.post("/addItem", async (req: Request, res: Response) => {
@@ -113,4 +131,31 @@ router.put("/:id", async (_req: Request, res: Response) => {
     }
   });
 
+  router.get("/deleteAllItems", async (_req: Request, res: Response) => {
+    try {
+      // Retrieve all items from the database
+      const items = await Item.find();
+  
+      if (items.length === 0) {
+        res.status(404).json({ error: "❌ No items found to delete" });
+      }
+      else {
+
+      // Loop through each item and delete it by ID
+      for (const item of items) {
+        await Item.findByIdAndDelete(item._id);
+      }
+  
+      res.status(200).json({ message: "✅ All items deleted successfully" });
+      }
+  
+  
+    } catch (error) {
+      console.error("Error deleting all items:", error); // Log error for debugging
+      res.status(500).json({ error: "❌ Server error" });
+    }
+  });
+  
+  
+  
 export default router;

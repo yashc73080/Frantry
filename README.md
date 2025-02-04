@@ -1,6 +1,13 @@
 # Frantry
 
 ```bash
+cd Frantry
 npm install
-npm expo start
+npx expo start
+```
+
+```bash
+cd backend
+npm install
+npm run dev
 ```

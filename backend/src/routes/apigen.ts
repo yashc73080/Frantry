@@ -55,7 +55,7 @@ const getRecipe = async () => {
   try {
     const p = await run()
     // console.log(`The lists are High: ${high}, Med: ${medium}, Low: ${low}`);
-    const req  = `Make a popular recipe that prioritizes at least one of the following ingredients: ${high}. Most of the remaining ingredients must come from the following: ${medium}, ${low}. Limit 200 words. No extra comments. Enumerate the steps.`;
+    const req  = `Make a tasty, delicious,popular recipe that prioritizes at least one of the following ingredients: ${high}. Most of the remaining ingredients must come from the following: ${medium}, ${low}. Limit 200 words. No extra comments. Enumerate the steps.`;
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -109,14 +109,20 @@ export default async function sendRecipe() {
       // Wrap the response in a JSON object
       const jsonObject = { recipe: reply };
 
+      var title;
+      var  content;
       // Extract title (first line surrounded by **)
       const match = reply.match(/\*\*(.*?)\*\*/);
       if (!match) {
-          throw new Error("No title found in recipe text");
+         title = '**Recipe**';
+         content = reply;
       }
-
-      const title = match[0].replace(/\*/g, '').trim(); // Remove '**' from title
-      const content = reply.split(match[0])[1]?.trim() || "No content available";
+      else {
+        title = match[0].replace(/\*/g, '').trim(); // Remove '**' from title
+        content = reply.split(match[0])[1]?.trim() || "No content available";
+      }
+      
+      
 
       // Final structured object
       const formattedRecipe = {
