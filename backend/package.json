@@ -17,6 +17,7 @@
     "asap": "^2.0.6",
     "ast-types": "^0.16.1",
     "async-limiter": "^1.0.1",
+    "axios": "^1.7.9",
     "babel-jest": "^29.7.0",
     "babel-plugin-istanbul": "^6.1.1",
     "babel-plugin-jest-hoist": "^29.6.3",

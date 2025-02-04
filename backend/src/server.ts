@@ -20,8 +20,8 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "DELETE"], // Allow specific HTTP methods
   allowedHeaders: ["Content-Type", "Authorization"], // Allow specific headers
 }));
-app.use(express.json({ limit: "10mb" })); // Increase payload size limit to 10MB
-app.use(express.urlencoded({ limit: "10mb", extended: true })); // For URL-encoded payloads
+app.use(express.json({ limit: "50mb" })); // Increase payload size limit to 10MB
+app.use(express.urlencoded({ limit: "50mb", extended: true })); // For URL-encoded payloads
 
 // Ensure the uploads directory exists
 const uploadsDir = path.join(__dirname, "uploads");

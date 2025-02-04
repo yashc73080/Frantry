@@ -2,6 +2,9 @@ import express, { Request, Response } from "express";
 import Item from "../models/Item";
 import fs from "fs";
 import sendRecipe from "./apigen"
+import ocrText from "./ocr"
+
+import axios from "axios";
 
 const router = express.Router();
 
@@ -42,6 +45,17 @@ router.post("/addItem", async (req: Request, res: Response) => {
     res.status(500).json({ error: "❌ Server error" });
   }
 });
+
+router.post("/photo", async (req: Request, res: Response) => {
+  try {
+    const photo = await ocrText(req.body.image);
+    res.json(photo);
+  
+  } catch (error) {
+    res.status(500).json({ error: "❌ Server error" });
+  }
+});
+
 
 
 
@@ -155,7 +169,7 @@ router.put("/:id", async (_req: Request, res: Response) => {
       res.status(500).json({ error: "❌ Server error" });
     }
   });
-  
-  
-  
+
+
+
 export default router;
