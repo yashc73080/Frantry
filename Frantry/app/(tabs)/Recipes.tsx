@@ -27,7 +27,7 @@ const RecipesScreen: React.FC = () => {
   const fetchRecipe = async () => {
     setIsLoading(true);
     try {
-      const response = await fetch('http://10.74.126.23:5000/api/items/recipes');
+      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/items/recipes`);
       const text = await response.json();
       console.log(text.recipe);
       const fetchedRecipe: Recipe = {

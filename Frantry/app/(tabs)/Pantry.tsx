@@ -31,7 +31,7 @@ const PantryList = () => {
   // Function to fetch pantry data
   const fetchPantryData = async () => {
     try {
-      const response = await axios.get('http://10.74.126.23:5000/api/items/getAllItems');
+      const response = await axios.get(`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/items/getAllItems`);
       setPantryData(response.data as PantryItem[]);
       setLoading(false);
       setError('');

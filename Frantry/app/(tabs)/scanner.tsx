@@ -4,8 +4,8 @@ import { StyleSheet, Text, View, Alert } from "react-native";
 import axios from "axios";
 import { Button, Card, ActivityIndicator as PaperActivityIndicator } from "react-native-paper";
 
-const GOOGLE_CLOUD_VISION_API_KEY = 'AIzaSyDSO7Puxg9hZ2cxuB_UR19PW_L2CkD87Gs';
-const OPENROUTER_API_KEY = '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'; 
+const GOOGLE_CLOUD_VISION_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_CLOUD_VISION_API_KEY!;
+const OPENROUTER_API_KEY = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY!;
 
 export default function Scanner() {
   const cameraRef = useRef<CameraView | null>(null);
@@ -142,7 +142,7 @@ Example JSON Output:
 
   const sendDataToBackend = async (foodData: any[]) => {
     try {
-      const response = await axios.post("http://10.74.87.22:5000/api/items/scannedData", foodData);
+      const response = await axios.post(`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/items/scannedData`, foodData);
       console.log("Data successfully sent to backend:", response.data);
     } catch (error) {
       console.error("Error sending data to backend:", error);
