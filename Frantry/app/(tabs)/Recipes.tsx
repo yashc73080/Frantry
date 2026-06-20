@@ -1,210 +1,397 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   Text,
   StyleSheet,
-  FlatList,
+  ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  ScrollView,
-} from 'react-native';
-import { Card, Button } from 'react-native-paper';
-import Typewriter from 'react-native-typewriter';
+} from "react-native";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import api from "@/lib/api";
 
-// Define types for recipe data
 interface Recipe {
-  id: string;
   title: string;
-  description: string;
-  content: string; // Content of the recipe
+  ingredients: string[];
+  steps: string[];
+  estimatedTime: string;
 }
 
-const RecipesScreen: React.FC = () => {
-  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+export default function RecipesScreen() {
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [emptyPantry, setEmptyPantry] = useState(false);
+  const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
 
-  // Function to fetch the recipe from the API
-  const fetchRecipe = async () => {
-    setIsLoading(true);
+  const fetchRecipes = async () => {
+    setLoading(true);
+    setError("");
+    setEmptyPantry(false);
+    setRecipes([]);
+    setExpandedIndex(null);
+
     try {
-      const response = await fetch(`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/items/recipes`);
-      const text = await response.json();
-      console.log(text.recipe);
-      const fetchedRecipe: Recipe = {
-        id: '1',
-        title: text.title,
-        description: 'This recipe was fetched from the API.',
-        content: text.content, // assuming API returns { recipeContent: 'Some recipe string here' }
-      };
-      setSelectedRecipe(fetchedRecipe);
-    } catch (error) {
-      console.error('Error fetching recipe:', error);
+      const response = await api.get("/api/items/recipes");
+      const data = response.data;
+
+      if (data.emptyPantry) {
+        setEmptyPantry(true);
+      } else {
+        setRecipes(data.recipes || []);
+        if (data.recipes?.length > 0) setExpandedIndex(0);
+      }
+    } catch (e: any) {
+      setError(
+        e?.response?.data?.error ||
+          "Could not generate recipes. Make sure you have items in your pantry."
+      );
     } finally {
-      setIsLoading(false);
+      setLoading(false);
     }
   };
 
-  // Handle selecting a recipe
-  const handleSelectRecipe = (recipe: Recipe) => {
-    setSelectedRecipe(recipe);
+  const toggleExpand = (index: number) => {
+    setExpandedIndex(expandedIndex === index ? null : index);
   };
-
-  // Render each recipe item in the list
-  const renderRecipeItem = ({ item }: { item: Recipe }) => (
-    <TouchableOpacity onPress={() => handleSelectRecipe(item)}>
-      <Card style={styles.card}>
-        <Card.Content>
-          <Text style={styles.recipeTitle}>{item.title}</Text>
-          <Text style={styles.recipeDescription}>{item.description}</Text>
-        </Card.Content>
-      </Card>
-    </TouchableOpacity>
-  );
 
   return (
     <View style={styles.container}>
-      {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="black" />
-        </View>
-      ) : selectedRecipe ? (
-        // When a recipe is selected, show the content in a scrollable area,
-        // with a fixed "Back to Recipes" button at the bottom.
-        <>
-          <ScrollView contentContainerStyle={styles.recipeDetailScroll}>
-            <View style={styles.recipeDetail}>
-              <Text style={styles.recipeDetailTitle}>{selectedRecipe.title}</Text>
-              <Typewriter style={styles.recipeDetailDescription} typing={1} minDelay={20}>
-                {selectedRecipe.content}
-              </Typewriter>
-            </View>
-          </ScrollView>
-          <View style={styles.fixedBackButtonContainer}>
-            <Button
-              mode="contained"
-              onPress={() => setSelectedRecipe(null)}
-              style={styles.backButton}
-            >
-              Back to Recipes
-            </Button>
-          </View>
-        </>
-      ) : (
-        <View style={styles.content}>
-          <FlatList
-            contentContainerStyle={{ marginTop: 25 }}
-            data={[
-              {
-                id: '1',
-                title: 'Spaghetti Carbonara',
-                description: 'A classic pasta dish made with eggs, cheese, pancetta, and pepper.',
-                content: 'This is a simple yet delicious spaghetti carbonara recipe. Start by cooking the spaghetti in salted boiling water. In a separate pan, cook the pancetta until crispy. In a bowl, whisk together eggs and grated cheese. Once the spaghetti is cooked, drain it and add it to the pan with pancetta. Remove from heat and quickly mix in the egg and cheese mixture, stirring constantly to create a creamy sauce. Season with pepper and serve immediately.',
-              },
-              {
-                id: '2',
-                title: 'Chicken Alfredo',
-                description: 'A creamy pasta dish made with chicken, cream, and Parmesan cheese.',
-                content: 'This is a rich and creamy chicken alfredo recipe. Start by cooking the fettuccine in salted boiling water. In a separate pan, cook the chicken breasts until golden brown and fully cooked. Remove the chicken from the pan and set aside. In the same pan, add butter and minced garlic, cooking until fragrant. Pour in heavy cream and bring to a simmer. Add grated Parmesan cheese and stir until melted and the sauce thickens. Slice the cooked chicken and add it to the sauce. Drain the fettuccine and add it to the pan, tossing to coat the pasta in the creamy sauce. Serve immediately with additional Parmesan cheese on top.',
-              },
-              {
-                id: '3',
-                title: 'Beef Stroganoff',
-                description: 'A savory dish made with beef, mushrooms, and a creamy sauce.',
-                content: 'This is a hearty beef stroganoff recipe. Start by cooking egg noodles in salted boiling water. In a separate pan, sauté sliced mushrooms until they release their moisture and become golden brown. Remove the mushrooms from the pan and set aside. In the same pan, cook thinly sliced beef until browned. Remove the beef and set aside. In the same pan, add butter and minced onions, cooking until softened. Stir in flour to create a roux, then gradually add beef broth, stirring constantly until the sauce thickens. Add sour cream and return the beef and mushrooms to the pan, stirring to combine. Serve the beef stroganoff over the cooked egg noodles and garnish with fresh parsley.',
-              },
-              {
-                id: '4',
-                title: 'Vegetable Stir Fry',
-                description: 'A quick and healthy dish made with a variety of fresh vegetables.',
-                content: 'This is a vibrant vegetable stir fry recipe. Start by preparing a mix of your favorite vegetables such as bell peppers, broccoli, carrots, and snap peas. In a large pan or wok, heat some oil over high heat. Add minced garlic and ginger, cooking until fragrant. Add the vegetables and stir fry for a few minutes until they are tender-crisp. In a small bowl, mix soy sauce, hoisin sauce, and a bit of cornstarch. Pour the sauce over the vegetables and stir to coat evenly. Cook for another minute until the sauce thickens. Serve the vegetable stir fry over steamed rice or noodles.',
-              },
-              {
-                id: '5',
-                title: 'Shrimp Scampi',
-                description: 'A classic seafood dish made with shrimp, garlic, and lemon butter sauce.',
-                content: 'This is a delicious shrimp scampi recipe. Start by cooking linguine in salted boiling water. In a large pan, melt butter and add minced garlic, cooking until fragrant. Add shrimp to the pan and cook until they turn pink. Remove the shrimp and set aside. In the same pan, add white wine and lemon juice, bringing it to a simmer. Return the shrimp to the pan and toss to coat in the sauce. Add cooked linguine to the pan and toss everything together. Garnish with chopped parsley and serve immediately with a wedge of lemon on the side.',
-              },
-            ]}
-            renderItem={renderRecipeItem}
-            keyExtractor={(item) => item.id}
-          />
-        </View>
-      )}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Recipes</Text>
+        <Text style={styles.headerSubtitle}>Generated from your pantry</Text>
+      </View>
 
-      {/* Display the "Generate Recipe" button only when no recipe is selected */}
-      {!isLoading && !selectedRecipe && (
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {loading ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color="#2E7D32" />
+            <Text style={styles.loadingText}>Generating recipes from your pantry…</Text>
+            <Text style={styles.loadingSubText}>This may take up to 30 seconds</Text>
+          </View>
+        ) : emptyPantry ? (
+          <View style={styles.emptyContainer}>
+            <MaterialCommunityIcons name="fridge-outline" size={72} color="#C8E6C9" />
+            <Text style={styles.emptyTitle}>Pantry is empty</Text>
+            <Text style={styles.emptySubtitle}>
+              Scan some grocery receipts first, then come back for recipe ideas.
+            </Text>
+          </View>
+        ) : error ? (
+          <View style={styles.emptyContainer}>
+            <MaterialCommunityIcons name="alert-circle-outline" size={64} color="#FFCDD2" />
+            <Text style={styles.errorTitle}>Could not generate recipes</Text>
+            <Text style={styles.errorSubtitle}>{error}</Text>
+          </View>
+        ) : recipes.length > 0 ? (
+          <View style={styles.recipeList}>
+            {recipes.map((recipe, index) => (
+              <RecipeCard
+                key={index}
+                recipe={recipe}
+                index={index}
+                expanded={expandedIndex === index}
+                onToggle={() => toggleExpand(index)}
+              />
+            ))}
+          </View>
+        ) : (
+          <View style={styles.emptyContainer}>
+            <MaterialCommunityIcons name="chef-hat" size={72} color="#C8E6C9" />
+            <Text style={styles.emptyTitle}>Ready to cook?</Text>
+            <Text style={styles.emptySubtitle}>
+              Tap "Generate Recipes" to get AI-powered recipe ideas from your pantry items.
+            </Text>
+          </View>
+        )}
+      </ScrollView>
+
+      {!loading && (
         <View style={styles.footer}>
-          <Button mode="contained" onPress={fetchRecipe} style={styles.fetchButton}>
-            Generate Recipe
-          </Button>
+          <TouchableOpacity style={styles.generateButton} onPress={fetchRecipes}>
+            <MaterialCommunityIcons name="chef-hat" size={20} color="#FFFFFF" />
+            <Text style={styles.generateButtonText}>
+              {recipes.length > 0 ? "Regenerate Recipes" : "Generate Recipes"}
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
     </View>
   );
-};
+}
+
+function RecipeCard({
+  recipe,
+  index,
+  expanded,
+  onToggle,
+}: {
+  recipe: Recipe;
+  index: number;
+  expanded: boolean;
+  onToggle: () => void;
+}) {
+  const colors = ["#1B5E20", "#4A148C", "#B71C1C", "#E65100", "#006064"];
+  const accentColor = colors[index % colors.length];
+
+  return (
+    <View style={styles.recipeCard}>
+      <TouchableOpacity
+        style={styles.recipeCardHeader}
+        onPress={onToggle}
+        activeOpacity={0.8}
+      >
+        <View style={[styles.recipeIndex, { backgroundColor: accentColor }]}>
+          <Text style={styles.recipeIndexText}>{index + 1}</Text>
+        </View>
+        <View style={styles.recipeTitleBlock}>
+          <Text style={styles.recipeTitle}>{recipe.title}</Text>
+          <View style={styles.recipeMeta}>
+            <MaterialCommunityIcons name="clock-outline" size={13} color="#9E9E9E" />
+            <Text style={styles.recipeTime}>{recipe.estimatedTime}</Text>
+          </View>
+        </View>
+        <MaterialCommunityIcons
+          name={expanded ? "chevron-up" : "chevron-down"}
+          size={22}
+          color="#9E9E9E"
+        />
+      </TouchableOpacity>
+
+      {expanded && (
+        <View style={styles.recipeBody}>
+          {/* Ingredients */}
+          <Text style={[styles.sectionLabel, { color: accentColor }]}>Ingredients</Text>
+          <View style={styles.ingredientChips}>
+            {recipe.ingredients.map((ing, i) => (
+              <View key={i} style={styles.chip}>
+                <Text style={styles.chipText}>{ing}</Text>
+              </View>
+            ))}
+          </View>
+
+          {/* Steps */}
+          <Text style={[styles.sectionLabel, { color: accentColor }]}>Instructions</Text>
+          {recipe.steps.map((step, i) => (
+            <View key={i} style={styles.stepRow}>
+              <View style={[styles.stepNumber, { backgroundColor: accentColor }]}>
+                <Text style={styles.stepNumberText}>{i + 1}</Text>
+              </View>
+              <Text style={styles.stepText}>{step}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    padding: 20,
+    backgroundColor: "#F8FAF8",
+  },
+  header: {
+    paddingHorizontal: 20,
+    paddingTop: 56,
+    paddingBottom: 16,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E8F5E9",
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#1B5E20",
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: "#81C784",
+    marginTop: 2,
+    fontWeight: "500",
+  },
+  content: {
+    padding: 16,
+    flexGrow: 1,
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
+    paddingTop: 60,
   },
-  recipeDetailScroll: {
-    flexGrow: 1,
-    paddingBottom: 80, // Reserve space for the fixed back button
+  loadingText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#424242",
+    textAlign: "center",
   },
-  content: {
+  loadingSubText: {
+    fontSize: 13,
+    color: "#9E9E9E",
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 12,
+    paddingTop: 60,
+    paddingHorizontal: 32,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: "700",
+    color: "#424242",
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    color: "#9E9E9E",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#B71C1C",
+  },
+  errorSubtitle: {
+    fontSize: 14,
+    color: "#9E9E9E",
+    textAlign: "center",
+    lineHeight: 20,
+  },
+  recipeList: {
+    gap: 12,
+  },
+  recipeCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 16,
+    overflow: "hidden",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  recipeCardHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 16,
+    gap: 12,
+  },
+  recipeIndex: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  recipeIndexText: {
+    color: "#FFFFFF",
+    fontWeight: "700",
+    fontSize: 16,
+  },
+  recipeTitleBlock: {
     flex: 1,
   },
-  card: {
-    marginVertical: 12,
-    borderRadius: 10,
-    elevation: 5,
-  },
   recipeTitle: {
-    fontSize: 18,
-    fontWeight: 'bold',
+    fontSize: 17,
+    fontWeight: "700",
+    color: "#212121",
   },
-  recipeDescription: {
+  recipeMeta: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginTop: 3,
+  },
+  recipeTime: {
+    fontSize: 12,
+    color: "#9E9E9E",
+  },
+  recipeBody: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: "#F5F5F5",
+    paddingTop: 12,
+    gap: 12,
+  },
+  sectionLabel: {
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 0.8,
+    textTransform: "uppercase",
+    marginBottom: 4,
+  },
+  ingredientChips: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    marginBottom: 4,
+  },
+  chip: {
+    backgroundColor: "#F1F8E9",
+    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: "#C8E6C9",
+  },
+  chipText: {
+    fontSize: 13,
+    color: "#2E7D32",
+  },
+  stepRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 12,
+  },
+  stepNumber: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 1,
+    flexShrink: 0,
+  },
+  stepNumberText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  stepText: {
+    flex: 1,
     fontSize: 14,
-    marginTop: 5,
-  },
-  recipeDetail: {
-    width: '100%',
-    alignItems: 'flex-start',
-    paddingVertical: 20,
-  },
-  recipeDetailTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    marginTop: 10, // Adjust this value to move the title lower
-    textAlign: 'left',
-  },  
-  recipeDetailDescription: {
-    fontSize: 16,
-    marginBottom: 20,
-    textAlign: 'left',
-  },
-  fixedBackButtonContainer: {
-    position: 'absolute',
-    bottom: 20,
-    left: 20,
-    right: 20,
-  },
-  backButton: {
-    borderRadius: 8,
+    color: "#424242",
+    lineHeight: 21,
   },
   footer: {
-    paddingBottom: 20,
+    padding: 16,
+    paddingBottom: 24,
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: 1,
+    borderTopColor: "#E8F5E9",
   },
-  fetchButton: {
-    borderRadius: 8,
+  generateButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 10,
+    backgroundColor: "#2E7D32",
+    borderRadius: 14,
+    paddingVertical: 15,
+    shadowColor: "#2E7D32",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  generateButtonText: {
+    fontSize: 16,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
 });
-
-export default RecipesScreen;

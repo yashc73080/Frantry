@@ -1,150 +1,96 @@
-import dotenv from 'dotenv';
-import { response } from 'express';
-// import { MongoClient } from 'mongodb';
+import Item from "../models/Item";
 
-dotenv.config({ path: './.env' });
-const api = process.env.OPENROUTER_API_KEY;
-const server = process.env.SERVER_URL;
-// console.log(api);
+// TODO: [FIREBASE SETUP] Set OPENROUTER_API_KEY in backend .env
+// To swap models, set OPENROUTER_MODEL in .env to any free OpenRouter model slug
+const OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY;
+const FREE_MODEL = process.env.OPENROUTER_MODEL || "meta-llama/llama-3.1-8b-instruct:free";
 
-
-const uri = `${process.env.MONGO_URI}`;
-// const client = new MongoClient(uri);
-let high = "";
-let medium = "";
-let low = "";
-
-async function run() {
-  try {
-      high = "";
-    medium = "";
-    low = "";
-    // await client.connect();
-    // const db = client.db("test");
-    // const col = db.collection("items");
-    
-    
-    const response = await fetch(`http://${process.env.SERVER_URL}:5000/api/items/getAllItems`, {
-      method: "GET",
-    });
-
-    const data = await response.json();
-    // console.log(data);
-    for (const index in data) {
-      const food = data[index];
-      if (food.expiryLevel == "high") {
-        high += food.name + " ";
-      }
-      else if (food.expiryLevel == "medium") {
-        medium += food.name + " ";
-      }
-      else {
-        low += food.name + " ";
-      }
-      
-    }
-  }
-  finally {
-    // console.log(response);
-  }
+export interface RecipeResult {
+  title: string;
+  ingredients: string[];
+  steps: string[];
+  estimatedTime: string;
 }
 
-
-
-const getRecipe = async () => {
-  try {
-    const p = await run()
-    // console.log(`The lists are High: ${high}, Med: ${medium}, Low: ${low}`);
-    const req  = `Make a tasty, delicious,popular recipe that prioritizes at least one of the following ingredients: ${high}. Most of the remaining ingredients must come from the following: ${medium}, ${low}. Limit 200 words. No extra comments. Enumerate the steps.`;
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${api}`,
-        "Content-Type": "application/json"
+export async function generateRecipes(userId: string): Promise<RecipeResult[]> {
+  const items = await Item.aggregate([
+    { $match: { userId } },
+    {
+      $addFields: {
+        expirySort: {
+          $switch: {
+            branches: [
+              { case: { $eq: ["$expiryLevel", "high"] }, then: 1 },
+              { case: { $eq: ["$expiryLevel", "medium"] }, then: 2 },
+              { case: { $eq: ["$expiryLevel", "low"] }, then: 3 },
+            ],
+            default: 4,
+          },
+        },
       },
-      body: JSON.stringify({
-        "model": "meta-llama/llama-3.2-3b-instruct:free",
-        "messages": [
-          {
-            "role": "user",
-            "content": [
-              {
-                "type": "text",
-                "text": req
-              }
-            ]
-          }
-        ]
-      })
-    });
+    },
+    { $sort: { expirySort: 1 } },
+    { $project: { expirySort: 0 } },
+  ]);
 
-    const data = await response.json();
-    if (!data.choices){
-      console.error('Error: DATA', data);
-      return ;
-    }
-    const reply = data.choices[0].message.content;
-    if (!reply){
-      console.log(data);
-    }
-    return reply;
-    console.log('Output: ', reply);
-  } catch (error) {
-    // console.error('Error:', error);
+  if (items.length === 0) {
+    const err = new Error("EMPTY_PANTRY");
+    throw err;
   }
-  
-  
-};
 
-export default async function sendRecipe() {
-  try {
-      // Fetch recipe text
-      const reply = await getRecipe();
-      console.log(`REPLY: ${reply}`);
+  const highPriority = items.filter((i) => i.expiryLevel === "high").map((i) => i.name);
+  const priorityNote =
+    highPriority.length > 0
+      ? `Prioritize using these items expiring soonest: ${highPriority.join(", ")}.`
+      : "";
 
-      if (!reply) {
-          throw new Error("Empty recipe received");
-      }
+  const ingredientList = items
+    .map((i) => `${i.name} (~${i.daysUntilExpiration} days until expiry)`)
+    .join(", ");
 
-      // Wrap the response in a JSON object
-      const jsonObject = { recipe: reply };
+  const prompt = `You are a creative chef. Available pantry ingredients: ${ingredientList}. ${priorityNote}
 
-      var title;
-      var  content;
-      // Extract title (first line surrounded by **)
-      const match = reply.match(/\*\*(.*?)\*\*/);
-      if (!match) {
-         title = '**Recipe**';
-         content = reply;
-      }
-      else {
-        title = match[0].replace(/\*/g, '').trim(); // Remove '**' from title
-        content = reply.split(match[0])[1]?.trim() || "No content available";
-      }
-      
-      
-
-      // Final structured object
-      const formattedRecipe = {
-          title,
-          content,
-          raw: jsonObject // Keep raw response for debugging if needed
-      };
-
-      console.log("Parsed Recipe:", formattedRecipe);
-      return formattedRecipe;
-  } catch (error) {
-      console.error("Error processing recipe:", error);
-      return { title: "Error", content: "Could not extract recipe" };
+Generate exactly 3 recipes using these ingredients. Respond ONLY with a valid JSON array, no markdown or extra text:
+[
+  {
+    "title": "Recipe Name",
+    "ingredients": ["2 cups flour", "1 egg"],
+    "steps": ["Preheat oven to 350F.", "Mix dry ingredients."],
+    "estimatedTime": "30 minutes"
   }
+]`;
+
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: FREE_MODEL,
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are a chef assistant. Always respond with valid JSON arrays only. No markdown fences, no explanations.",
+        },
+        { role: "user", content: prompt },
+      ],
+      max_tokens: 2000,
+      temperature: 0.7,
+    }),
+  });
+
+  const data = (await response.json()) as any;
+
+  if (!data.choices || !data.choices[0]?.message?.content) {
+    console.error("OpenRouter error:", data);
+    throw new Error("LLM_ERROR");
+  }
+
+  let raw: string = data.choices[0].message.content.trim();
+  raw = raw.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/i, "").trim();
+
+  const recipes: RecipeResult[] = JSON.parse(raw);
+  return Array.isArray(recipes) ? recipes : [recipes];
 }
-
-// const sendRecipe = async () => {
-//   const reply = await getRecipe();
-//   const json = `{"recipe": "${reply}"}`;
-//   console.log(reply);
-//   const fix = JSON.stringify(json);
-//   return JSON.parse(fix);
-// }
-
-// export default sendRecipe ;

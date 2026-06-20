@@ -1,24 +1,43 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useState, useRef } from "react";
-import { StyleSheet, Text, View, Alert, Platform } from "react-native";
-import axios from "axios";
+import {
+  StyleSheet,
+  Text,
+  View,
+  Alert,
+  Platform,
+  FlatList,
+  TextInput,
+  TouchableOpacity,
+  KeyboardAvoidingView,
+} from "react-native";
 import { Button, Card, ActivityIndicator as PaperActivityIndicator } from "react-native-paper";
+import { MaterialCommunityIcons } from "@expo/vector-icons";
+import api from "@/lib/api";
 
-const GOOGLE_CLOUD_VISION_API_KEY = process.env.EXPO_PUBLIC_GOOGLE_CLOUD_VISION_API_KEY!;
-const OPENROUTER_API_KEY = process.env.EXPO_PUBLIC_OPENROUTER_API_KEY!;
+type ParsedItem = {
+  name: string;
+  daysUntilExpiration: number;
+  expiryLevel: "low" | "medium" | "high";
+};
+
+type ScanMode = "camera" | "processing" | "confirming";
 
 export default function Scanner() {
   const cameraRef = useRef<CameraView | null>(null);
   const [facing, setFacing] = useState<"back" | "front">("back");
   const [permission, requestPermission] = useCameraPermissions();
-  const [photoTaken, setPhotoTaken] = useState(false);  // State to track photo status
-  const [processing, setProcessing] = useState(false);   // New state for loading
+  const [mode, setMode] = useState<ScanMode>("camera");
+  const [parsedItems, setParsedItems] = useState<ParsedItem[]>([]);
+  const [processingStep, setProcessingStep] = useState("");
 
-  if (Platform.OS === 'web' && typeof window !== 'undefined' && !window.isSecureContext) {
+  if (Platform.OS === "web" && typeof window !== "undefined" && !window.isSecureContext) {
     return (
-      <View style={styles.permissionContainer}>
+      <View style={styles.centered}>
         <Text style={styles.permissionText}>Camera requires a secure connection (HTTPS).</Text>
-        <Text style={styles.permissionSubText}>This works when the site is deployed. For local testing, use the laptop browser at localhost.</Text>
+        <Text style={styles.permissionSubText}>
+          This works on the deployed Vercel site. For local testing, use localhost.
+        </Text>
       </View>
     );
   }
@@ -26,280 +45,412 @@ export default function Scanner() {
   if (!permission) return <View />;
   if (!permission.granted) {
     return (
-      <View style={styles.permissionContainer}>
-        <Text style={styles.permissionText}>We need camera access</Text>
-        <Button style={styles.permissionButton} mode="contained" onPress={requestPermission}>
+      <View style={styles.centered}>
+        <MaterialCommunityIcons name="camera-off" size={64} color="#C8E6C9" />
+        <Text style={styles.permissionText}>Camera access needed</Text>
+        <Text style={styles.permissionSubText}>
+          Grant camera permission to scan grocery receipts
+        </Text>
+        <Button mode="contained" onPress={requestPermission} style={styles.grantButton}>
           Grant Permission
         </Button>
       </View>
     );
   }
 
-  const toggleCameraFacing = () => setFacing(facing === "back" ? "front" : "back");
-
-  const takePhoto = async (): Promise<void> => {
-    if (cameraRef.current) {
-      try {
-        const photo = await cameraRef.current.takePictureAsync({ base64: true });
-        if (photo?.base64) {
-          ocrImage(photo.base64);
-          setPhotoTaken(true);  // Set photoTaken to true after successful capture
-
-          // Reset the photoTaken state after 2 seconds (or any preferred time)
-          setTimeout(() => setPhotoTaken(false), 2000);
-        }
-      } catch (error) {
-        console.error("takePhoto error:", error);
-        Alert.alert("Error", "Failed to capture photo.");
-      }
-    }
-  };
-
-  const extractFoodItems = (ocrText: string): string[] => {
-    const lines = ocrText.split("\n").map(line => line.trim());
-    const priceRegex = /\$\d+(\.\d{2})?/;
-    const blacklist = new Set([
-      "SPECIAL",
-      "SUBTOTAL",
-      "TOTAL",
-      "LOYALTY",
-      "CHANGE",
-      "CASH",
-      "BALANCE",
-      "DISCOUNT",
-    ]);
-
-    let items: string[] = [];
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-      if (!line || blacklist.has(line)) continue;
-      if (priceRegex.test(line) && i > 0) {
-        const prevLine = lines[i - 1];
-        if (
-          !priceRegex.test(prevLine) &&
-          prevLine.length > 3 &&
-          !blacklist.has(prevLine) &&
-          !/\d/.test(prevLine)
-        ) {
-          items.push(prevLine);
-        }
-      }
-    }
-    return items;
-  };
-
-  const inferExpiry = async (foodItems: string[]) => {
+  const takePhoto = async () => {
+    if (!cameraRef.current) return;
     try {
-      const prompt = `For each of the following food items, estimate how many days they will last before they expire. 
-Additionally, standardize each food item name to a more common format:
-- Convert all uppercase names to title case.
-- Remove unnecessary descriptors (e.g., "Brushed Potatoes" → "Potatoes", "Green Apple" → "Apple").
-- Generalize names where possible (e.g., "Iceberg Lettuce" → "Lettuce", "Cavendish Banana" → "Banana").
-
-${foodItems.map((item, index) => `${index + 1}. ${item}`).join("\n")}
-
-Respond **only** in JSON format as an array of objects, each with:
-- "name": the standardized food item name
-- "daysUntilExpiration": an integer estimate of how many days until it expires
-- "expiryLevel": "high" (≤2 days), "medium" (3-5 days), or "low" (≥6 days)
-
-Example JSON Output:
-\`\`\`json
-[
-  {"name": "Banana", "daysUntilExpiration": 5, "expiryLevel": "medium"},
-  {"name": "Broccoli", "daysUntilExpiration": 3, "expiryLevel": "medium"}
-]
-\`\`\`
-`;
-
-      const response = await axios.post(
-        "https://openrouter.ai/api/v1/chat/completions",
-        {
-          model: "meta-llama/llama-3.2-3b-instruct:free",
-          messages: [
-            { role: "system", content: "You must respond **only** in JSON format. No extra text, explanations, or formatting." },
-            { role: "user", content: prompt },
-          ],
-          max_tokens: 750,
-          temperature: 0.5,
-        },
-        {
-          headers: {
-            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      const choices = response.data.choices;
-      if (!choices || choices.length === 0 || !choices[0].message || !choices[0].message.content) {
-        console.error("Invalid response structure:", response.data);
-        return [];
+      const photo = await cameraRef.current.takePictureAsync({ base64: true });
+      if (!photo?.base64) {
+        Alert.alert("Error", "Could not capture photo. Please try again.");
+        return;
       }
-
-      let responseText = choices[0].message.content;
-      responseText = responseText.replace(/```json|```/g, "").trim();
-
-      const result = JSON.parse(responseText);
-      console.log("Inferred Expiry Data:", result);
-      return result;
+      await processImage(photo.base64);
     } catch (error) {
-      console.error("Error inferring expiration:", error);
-      return [];
+      console.error("takePhoto error:", error);
+      Alert.alert("Error", "Failed to capture photo.");
     }
   };
 
-  const sendDataToBackend = async (foodData: any[]) => {
+  const processImage = async (base64: string) => {
+    setMode("processing");
     try {
-      const response = await axios.post(`${process.env.EXPO_PUBLIC_BACKEND_URL}/api/items/scannedData`, foodData);
-      console.log("Data successfully sent to backend:", response.data);
-    } catch (error) {
-      console.error("Error sending data to backend:", error);
-      throw error;
-    }
-  };
+      setProcessingStep("Reading receipt…");
+      const response = await api.post("/api/items/scan", { image: base64 });
+      const items: ParsedItem[] = response.data.items;
 
-  const ocrImage = async (base64Image: string) => {
-    setProcessing(true);
-    try {
-      const requestPayload = {
-        requests: [
-          {
-            image: { content: base64Image },
-            features: [{ type: "TEXT_DETECTION", maxResults: 1 }],
-          },
-        ],
-      };
-
-      const apiResponse = await axios.post(
-        `https://vision.googleapis.com/v1/images:annotate?key=${GOOGLE_CLOUD_VISION_API_KEY}`,
-        requestPayload
-      );
-
-      const extractedText = apiResponse.data.responses[0]?.fullTextAnnotation?.text;
-      console.log("Raw OCR Text:", extractedText);
-
-      if (!extractedText) {
-        console.error("No text extracted.");
-        setProcessing(false);
+      if (!items || items.length === 0) {
+        Alert.alert(
+          "No Items Found",
+          "Could not detect food items on this receipt. Try a clearer photo with better lighting.",
+          [{ text: "Try Again", onPress: () => setMode("camera") }]
+        );
         return;
       }
 
-      const foodItems = extractFoodItems(extractedText);
-      console.log("Filtered Food Items:", foodItems);
-
-      const foodData = await inferExpiry(foodItems);
-      console.log("Final Output:", foodData);
-
-      if (foodData.length > 0) {
-        await sendDataToBackend(foodData);
-        setProcessing(false);
-        Alert.alert("Success", "Food data uploaded successfully!");
-      } else {
-        setProcessing(false);
-      }
-    } catch (error) {
-      console.error("Error with OCR:", error);
-      setProcessing(false);
-      Alert.alert("Error", "An error occurred during processing. Please try again.");
+      setParsedItems(items);
+      setMode("confirming");
+    } catch (error: any) {
+      const msg =
+        error?.response?.data?.error ||
+        "Could not read receipt — please try again in better lighting";
+      Alert.alert("Scan Failed", msg, [{ text: "Try Again", onPress: () => setMode("camera") }]);
+      setMode("camera");
     }
   };
 
+  const updateItem = (index: number, field: keyof ParsedItem, value: string | number) => {
+    setParsedItems((prev) =>
+      prev.map((item, i) => (i === index ? { ...item, [field]: value } : item))
+    );
+  };
+
+  const removeItem = (index: number) => {
+    setParsedItems((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const confirmAndSave = async () => {
+    if (parsedItems.length === 0) {
+      setMode("camera");
+      return;
+    }
+    setMode("processing");
+    setProcessingStep("Saving to pantry…");
+    try {
+      await api.post("/api/items/scannedData", parsedItems);
+      Alert.alert("Success", `${parsedItems.length} item(s) added to your pantry!`, [
+        { text: "Done", onPress: () => setMode("camera") },
+      ]);
+    } catch {
+      Alert.alert("Error", "Could not save items. Please try again.", [
+        { text: "OK", onPress: () => setMode("confirming") },
+      ]);
+    }
+  };
+
+  if (mode === "processing") {
+    return (
+      <View style={styles.centered}>
+        <Card style={styles.processingCard}>
+          <Card.Content style={styles.processingContent}>
+            <PaperActivityIndicator animating size="large" color="#2E7D32" />
+            <Text style={styles.processingText}>{processingStep || "Processing…"}</Text>
+            <Text style={styles.processingSubText}>This may take a few seconds</Text>
+          </Card.Content>
+        </Card>
+      </View>
+    );
+  }
+
+  if (mode === "confirming") {
+    return (
+      <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <View style={styles.confirmContainer}>
+          <View style={styles.confirmHeader}>
+            <Text style={styles.confirmTitle}>Review Items</Text>
+            <Text style={styles.confirmSubtitle}>
+              {parsedItems.length} item{parsedItems.length !== 1 ? "s" : ""} detected — edit or
+              remove before saving
+            </Text>
+          </View>
+
+          <FlatList
+            data={parsedItems}
+            keyExtractor={(_, i) => String(i)}
+            style={styles.confirmList}
+            contentContainerStyle={{ gap: 10, padding: 16 }}
+            renderItem={({ item, index }) => (
+              <View style={styles.confirmCard}>
+                <View style={styles.confirmCardRow}>
+                  <TextInput
+                    style={styles.nameInput}
+                    value={item.name}
+                    onChangeText={(v) => updateItem(index, "name", v)}
+                    placeholder="Item name"
+                  />
+                  <TouchableOpacity
+                    onPress={() => removeItem(index)}
+                    style={styles.removeButton}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <MaterialCommunityIcons name="close" size={18} color="#EF9A9A" />
+                  </TouchableOpacity>
+                </View>
+                <View style={styles.confirmCardRow}>
+                  <Text style={styles.daysLabel}>Days until expiry:</Text>
+                  <TextInput
+                    style={styles.daysInput}
+                    value={String(item.daysUntilExpiration)}
+                    keyboardType="number-pad"
+                    onChangeText={(v) => {
+                      const n = parseInt(v, 10);
+                      if (!isNaN(n) && n >= 0) updateItem(index, "daysUntilExpiration", n);
+                    }}
+                  />
+                  <ExpiryBadge level={item.expiryLevel} />
+                </View>
+              </View>
+            )}
+          />
+
+          <View style={styles.confirmFooter}>
+            <Button
+              mode="outlined"
+              onPress={() => setMode("camera")}
+              style={styles.cancelButton}
+              textColor="#757575"
+            >
+              Rescan
+            </Button>
+            <Button
+              mode="contained"
+              onPress={confirmAndSave}
+              style={styles.saveButton}
+              disabled={parsedItems.length === 0}
+              buttonColor="#2E7D32"
+            >
+              Save {parsedItems.length} Item{parsedItems.length !== 1 ? "s" : ""}
+            </Button>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    );
+  }
+
   return (
-    <View style={styles.container}>
+    <View style={styles.cameraContainer}>
       <CameraView style={styles.camera} facing={facing} ref={cameraRef}>
-        <View style={styles.overlay}>
-          <Button style={styles.flipButton} mode="outlined" onPress={toggleCameraFacing}>
-            Flip
-          </Button>
+        {/* Viewfinder overlay */}
+        <View style={styles.viewfinderOverlay}>
+          <View style={styles.viewfinder} />
+          <Text style={styles.viewfinderHint}>Align receipt within frame</Text>
         </View>
       </CameraView>
-      <View style={styles.controlsContainer}>
-        <Button
-          style={styles.captureButton}
-          mode="contained"
-          onPress={takePhoto}
-          icon={photoTaken ? "check" : "camera"} // Show check if photoTaken is true, else camera
-        >
-          {photoTaken ? "Captured" : "Capture"}
-        </Button>
+
+      <View style={styles.cameraControls}>
+        <TouchableOpacity style={styles.flipButton} onPress={() => setFacing(facing === "back" ? "front" : "back")}>
+          <MaterialCommunityIcons name="camera-flip-outline" size={24} color="#FFFFFF" />
+        </TouchableOpacity>
+
+        <TouchableOpacity style={styles.captureButton} onPress={takePhoto}>
+          <View style={styles.captureButtonInner} />
+        </TouchableOpacity>
+
+        <View style={{ width: 48 }} />
       </View>
-      {processing && (
-        <View style={styles.loadingOverlay}>
-          <Card style={styles.loadingCard}>
-            <Card.Content style={styles.loadingCardContent}>
-              <PaperActivityIndicator animating={true} size="large" color="#6200ee" />
-              <Text style={styles.loadingText}>Processing food data...</Text>
-            </Card.Content>
-          </Card>
-        </View>
-      )}
+    </View>
+  );
+}
+
+function ExpiryBadge({ level }: { level: string }) {
+  const color = level === "high" ? "#C62828" : level === "medium" ? "#F9A825" : "#2E7D32";
+  const label = level === "high" ? "Urgent" : level === "medium" ? "Soon" : "Fresh";
+  return (
+    <View style={[styles.expiryBadge, { backgroundColor: color }]}>
+      <Text style={styles.expiryBadgeText}>{label}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, justifyContent: "center" },
-  camera: { flex: 1 },
-  overlay: {
-    position: "absolute",
-    bottom: 20,
-    left: 0,
-    right: 0,
+  centered: {
+    flex: 1,
     justifyContent: "center",
     alignItems: "center",
+    gap: 12,
+    padding: 32,
+    backgroundColor: "#F8FAF8",
+  },
+  permissionText: {
+    fontSize: 18,
+    fontWeight: "600",
+    textAlign: "center",
+    color: "#212121",
+  },
+  permissionSubText: {
+    fontSize: 14,
+    color: "#757575",
+    textAlign: "center",
+  },
+  grantButton: {
+    marginTop: 8,
+    backgroundColor: "#2E7D32",
+    borderRadius: 12,
+  },
+  processingCard: {
+    padding: 16,
+    borderRadius: 16,
+    elevation: 4,
+    minWidth: 260,
+  },
+  processingContent: {
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 8,
+  },
+  processingText: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: "#212121",
+  },
+  processingSubText: {
+    fontSize: 13,
+    color: "#9E9E9E",
+  },
+  // Camera UI
+  cameraContainer: {
+    flex: 1,
+    backgroundColor: "#000",
+  },
+  camera: {
+    flex: 1,
+  },
+  viewfinderOverlay: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    gap: 16,
+  },
+  viewfinder: {
+    width: "85%",
+    aspectRatio: 1.6,
+    borderWidth: 2,
+    borderColor: "rgba(255,255,255,0.7)",
+    borderRadius: 12,
+  },
+  viewfinderHint: {
+    color: "rgba(255,255,255,0.8)",
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  cameraControls: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-around",
+    paddingVertical: 32,
+    paddingHorizontal: 40,
+    backgroundColor: "#000",
   },
   flipButton: {
-    borderRadius: 25,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.15)",
+    justifyContent: "center",
+    alignItems: "center",
   },
   captureButton: {
-    width: 200,
-    height: 50,
-    marginVertical: 20,
-    borderRadius: 25,
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "rgba(255,255,255,0.3)",
     justifyContent: "center",
     alignItems: "center",
-    shadowColor: "rgba(0, 0, 0, 0.5)",
-    shadowOffset: { width: 0, height: 4 },
-    shadowRadius: 10,
-    shadowOpacity: 0.25,
-    elevation: 5,
+    borderWidth: 3,
+    borderColor: "#FFFFFF",
   },
-  controlsContainer: {
-    padding: 20,
+  captureButtonInner: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: "#FFFFFF",
+  },
+  // Confirm UI
+  confirmContainer: {
+    flex: 1,
+    backgroundColor: "#F8FAF8",
+  },
+  confirmHeader: {
+    paddingHorizontal: 20,
+    paddingTop: 56,
+    paddingBottom: 16,
+    backgroundColor: "#FFFFFF",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E8F5E9",
+  },
+  confirmTitle: {
+    fontSize: 24,
+    fontWeight: "700",
+    color: "#1B5E20",
+  },
+  confirmSubtitle: {
+    fontSize: 14,
+    color: "#757575",
+    marginTop: 4,
+  },
+  confirmList: {
+    flex: 1,
+  },
+  confirmCard: {
+    backgroundColor: "#FFFFFF",
+    borderRadius: 12,
+    padding: 14,
+    gap: 10,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  confirmCardRow: {
+    flexDirection: "row",
     alignItems: "center",
+    gap: 10,
   },
-  permissionContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24 },
-  permissionText: { fontSize: 18, marginBottom: 12, textAlign: "center" },
-  permissionSubText: { fontSize: 14, color: "#666", textAlign: "center", marginBottom: 20 },
-  permissionButton: {
-    backgroundColor: "#007bff",
-    padding: 10,
-    borderRadius: 8,
-  },
-  loadingOverlay: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(255,255,255,0.9)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  loadingCard: {
-    padding: 20,
-    borderRadius: 8,
-    elevation: 4,
-  },
-  loadingCardContent: {
-    alignItems: "center",
-  },
-  loadingText: {
-    marginTop: 12,
+  nameInput: {
+    flex: 1,
     fontSize: 16,
-    color: "#333",
+    fontWeight: "600",
+    color: "#212121",
+    borderBottomWidth: 1,
+    borderBottomColor: "#E0E0E0",
+    paddingBottom: 4,
+  },
+  removeButton: {
+    padding: 4,
+  },
+  daysLabel: {
+    fontSize: 13,
+    color: "#757575",
+  },
+  daysInput: {
+    width: 52,
+    fontSize: 15,
+    fontWeight: "600",
+    color: "#2E7D32",
+    borderWidth: 1,
+    borderColor: "#C8E6C9",
+    borderRadius: 8,
+    padding: 6,
+    textAlign: "center",
+  },
+  expiryBadge: {
+    borderRadius: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 3,
+    marginLeft: "auto",
+  },
+  expiryBadgeText: {
+    color: "#FFFFFF",
+    fontSize: 12,
+    fontWeight: "700",
+  },
+  confirmFooter: {
+    flexDirection: "row",
+    gap: 12,
+    padding: 16,
+    paddingBottom: 32,
+    backgroundColor: "#FFFFFF",
+    borderTopWidth: 1,
+    borderTopColor: "#E8F5E9",
+  },
+  cancelButton: {
+    flex: 1,
+    borderColor: "#BDBDBD",
+  },
+  saveButton: {
+    flex: 2,
+    borderRadius: 12,
   },
 });
-
