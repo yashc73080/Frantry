@@ -64,7 +64,7 @@ export default function PantryList() {
       setError("");
     } catch (err: any) {
       const msg = err?.response?.data?.error || err?.message || "Unknown error";
-      setError(`Failed to load pantry: ${msg}`);
+      setError(msg);
     } finally {
       setLoading(false);
     }

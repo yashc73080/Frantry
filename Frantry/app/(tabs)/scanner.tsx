@@ -117,7 +117,13 @@ export default function Scanner() {
         return;
       }
 
-      await runOCR(photo.base64);
+      // Expo web returns a full data URL ("data:image/jpeg;base64,...").
+      // Native returns raw base64. Strip the prefix so Vision API always gets clean base64.
+      const raw = photo.base64.includes(",")
+        ? photo.base64.split(",")[1]
+        : photo.base64;
+
+      await runOCR(raw);
     } catch (err: any) {
       console.error("[scanner] capture error:", err?.message);
       setError(
@@ -178,19 +184,19 @@ export default function Scanner() {
         setError(
           "ocr",
           "Vision API Error (400)",
-          "The image was rejected by Google Vision. The photo may be too small or corrupted. Try again."
+          `Google Vision rejected the image.\n\nAPI response: ${body.slice(0, 300)}\n\nThis is usually a malformed image. If this keeps happening, check that the EXPO_PUBLIC_GOOGLE_CLOUD_VISION_API_KEY is valid.`
         );
       } else if (status === 403) {
         setError(
           "ocr",
           "Vision API Key Invalid (403)",
-          "Check that EXPO_PUBLIC_GOOGLE_CLOUD_VISION_API_KEY is correct and the Vision API is enabled in Google Cloud Console."
+          "Check that EXPO_PUBLIC_GOOGLE_CLOUD_VISION_API_KEY is correct and the Vision API is enabled in Google Cloud Console.\n\nAPI response: " + body.slice(0, 200)
         );
       } else {
         setError(
           "ocr",
-          "OCR Failed",
-          `Google Vision API returned an error (HTTP ${status ?? "network"}).\n\nDetail: ${body.slice(0, 150)}`
+          `Vision API Failed (HTTP ${status ?? "network error"})`,
+          body.slice(0, 400) || "No response body. Check your network connection and Vision API key."
         );
       }
     }
