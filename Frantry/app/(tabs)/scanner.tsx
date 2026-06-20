@@ -1,6 +1,6 @@
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { useState, useRef } from "react";
-import { StyleSheet, Text, View, Alert } from "react-native";
+import { StyleSheet, Text, View, Alert, Platform } from "react-native";
 import axios from "axios";
 import { Button, Card, ActivityIndicator as PaperActivityIndicator } from "react-native-paper";
 
@@ -13,6 +13,15 @@ export default function Scanner() {
   const [permission, requestPermission] = useCameraPermissions();
   const [photoTaken, setPhotoTaken] = useState(false);  // State to track photo status
   const [processing, setProcessing] = useState(false);   // New state for loading
+
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && !window.isSecureContext) {
+    return (
+      <View style={styles.permissionContainer}>
+        <Text style={styles.permissionText}>Camera requires a secure connection (HTTPS).</Text>
+        <Text style={styles.permissionSubText}>This works when the site is deployed. For local testing, use the laptop browser at localhost.</Text>
+      </View>
+    );
+  }
 
   if (!permission) return <View />;
   if (!permission.granted) {
@@ -260,8 +269,9 @@ const styles = StyleSheet.create({
     padding: 20,
     alignItems: "center",
   },
-  permissionContainer: { flex: 1, justifyContent: "center", alignItems: "center" },
-  permissionText: { fontSize: 18, marginBottom: 20 },
+  permissionContainer: { flex: 1, justifyContent: "center", alignItems: "center", padding: 24 },
+  permissionText: { fontSize: 18, marginBottom: 12, textAlign: "center" },
+  permissionSubText: { fontSize: 14, color: "#666", textAlign: "center", marginBottom: 20 },
   permissionButton: {
     backgroundColor: "#007bff",
     padding: 10,

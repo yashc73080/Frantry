@@ -15,10 +15,14 @@ const PORT = process.env.PORT || 5000;
 connectDB();
 
 // Middleware
+const allowedOrigins = process.env.ALLOWED_ORIGINS
+  ? process.env.ALLOWED_ORIGINS.split(",")
+  : "*";
+
 app.use(cors({
-  origin: "*", // Allow all origins (replace with your frontend URL in production)
-  methods: ["GET", "POST", "PUT", "DELETE"], // Allow specific HTTP methods
-  allowedHeaders: ["Content-Type", "Authorization"], // Allow specific headers
+  origin: allowedOrigins,
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 }));
 app.use(express.json({ limit: "10mb" })); // Increase payload size limit to 10MB
 app.use(express.urlencoded({ limit: "10mb", extended: true })); // For URL-encoded payloads

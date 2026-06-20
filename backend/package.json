@@ -336,6 +336,7 @@
     "yn": "^3.1.1"
   },
   "scripts": {
+    "build": "tsc",
     "start": "node dist/server.js",
     "dev": "nodemon src/server.ts"
   },
